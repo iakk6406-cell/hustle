@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ru"><head>
+<meta charset="utf-8"><title>Как поставить ХАСЛ</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#10100f"><meta name="color-scheme" content="dark">
+<meta name="description" content="Личный учёт денег в долларах и драмах поверх своей Google Таблицы. Установка за 5 минут.">
+<link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-180.png">
+<style>
+:root{--bg:#10100f;--card:#1c1b19;--line:#33312b;--text:#f1ebe0;--muted:#a9a397;--gold:#e2bf72;--gold-ink:#1a1710;--field:#141413}
+*{box-sizing:border-box}html{background:var(--bg)}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 system-ui,-apple-system,'Segoe UI',sans-serif}
+main{max-width:720px;margin:auto;padding:max(28px,env(safe-area-inset-top)) 16px 60px}
+.brand{letter-spacing:.22em;color:var(--gold);font-weight:600}
+h1{font-size:30px;line-height:1.2;margin:14px 0 8px;letter-spacing:-.5px}
+.lead{color:var(--muted);margin:0 0 22px}
+.feat{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 26px;padding:0;list-style:none}
+.feat li{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:14px;color:var(--muted)}
+.feat b{display:block;color:var(--text);font-size:15px}
+ol{list-style:none;counter-reset:s;margin:0;padding:0}
+ol>li{counter-increment:s;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px 16px 16px 60px;margin:12px 0;position:relative}
+ol>li::before{content:counter(s);position:absolute;left:16px;top:15px;width:30px;height:30px;border-radius:10px;background:var(--gold);color:var(--gold-ink);font-weight:700;display:grid;place-items:center}
+ol>li h2{font-size:17px;margin:2px 0 6px}
+ol>li p{margin:6px 0;color:var(--muted)}ol>li p b,ol>li li b{color:var(--text)}
+ol ul{margin:6px 0;padding-left:18px;color:var(--muted)}
+code,.k{background:var(--field);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font:14px ui-monospace,Consolas,monospace;color:var(--text)}
+pre{background:var(--field);border:1px solid var(--line);border-radius:12px;padding:12px;overflow:auto;font:13px/1.5 ui-monospace,Consolas,monospace;margin:8px 0}
+a{color:var(--gold)}
+.btn{display:inline-block;cursor:pointer;border:1px solid var(--gold);background:var(--gold);color:var(--gold-ink);font:inherit;font-weight:650;border-radius:12px;padding:11px 16px;text-decoration:none;margin-top:6px}
+.btn.ghost{background:none;color:var(--gold)}
+#copied{color:var(--gold);font-size:14px;margin-left:8px}
+.note{background:#e2bf7214;border:1px solid #e2bf7244;border-radius:14px;padding:12px 14px;margin:20px 0;font-size:15px;color:var(--muted)}
+.note b{color:var(--text)}
+details{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:10px 0}
+summary{cursor:pointer;font-weight:600}details p{color:var(--muted);margin:8px 0 2px}
+@media(max-width:520px){.feat{grid-template-columns:1fr}h1{font-size:26px}}
+</style></head><body><main>
+<div class="brand">$ ХАСЛ</div>
+<h1>Свой учёт денег за 5 минут</h1>
+<p class="lead">Приложение для доходов, отложенного и трат в долларах и драмах. Данные хранятся в твоей Google Таблице, никто кроме тебя их не видит.</p>
+<ul class="feat">
+ <li><b>$ и ֏ отдельно</b>и вместе по твоему курсу, с курсами банков rate.am</li>
+ <li><b>Куда уходят и откуда приходят</b>графики по неделям, месяцам и категориям</li>
+ <li><b>Работает без интернета</b>записи уйдут в таблицу, когда появится сеть</li>
+ <li><b>Как настоящее приложение</b>на iPhone и Android — иконка на экране, без браузера</li>
+</ul>
+
+<ol>
+ <li><h2>Создай Google Таблицу</h2>
+  <p>Открой <a href="https://sheets.new" target="_blank" rel="noopener">sheets.new</a> — появится пустая таблица в твоём Google-аккаунте. Назови как хочешь.</p>
+  <p>Если ведёшь деньги вместе с кем-то в общей таблице — смотри «Общая таблица на двоих» внизу.</p></li>
+
+ <li><h2>Вставь код</h2>
+  <p>В таблице: <b>Расширения → Apps Script</b>. Откроется редактор с файлом <code>Code.gs</code>. Удали всё, что там написано, и вставь код:</p>
+  <button class="btn" id="copy">Скопировать код</button><span id="copied"></span>
+  <p style="margin-top:12px">В самом верху кода впиши своё имя — так ты будешь подписан в таблице:</p>
+  <pre>name: '<b style="color:var(--gold)">Арам</b>',</pre>
+  <p>Нажми 💾 (сохранить).</p></li>
+
+ <li><h2>Запусти настройку</h2>
+  <p>Над кодом выбери функцию <code>setup</code> и нажми <b>«Выполнить»</b>.</p>
+  <p>Google попросит доступ — это доступ <b>твоего же</b> скрипта к <b>твоей</b> таблице: «Проверить разрешения» → выбери аккаунт → «Дополнительно» → «Перейти…» → «Разрешить».</p>
+  <p>Внизу в журнале появится <b>ключ входа</b> — скопируй и сохрани его. Никому не показывай.</p></li>
+
+ <li><h2>Опубликуй скрипт</h2>
+  <p><b>Начать развёртывание → Новое развёртывание</b> → ⚙ рядом с «Тип» → <b>Веб-приложение</b>.</p>
+  <ul><li>Запуск от имени: <b>Я</b></li><li>У кого есть доступ: <b>Все</b></li></ul>
+  <p>«Развернуть» → скопируй ссылку, которая кончается на <code>/exec</code>.</p>
+  <p>«Все» не значит, что кто-то увидит твои данные: без ключа скрипт ничего не отдаёт.</p></li>
+
+ <li><h2>Открой приложение</h2>
+  <p><a class="btn" href="./">Открыть ХАСЛ</a></p>
+  <p>Вставь ссылку <code>/exec</code> и ключ — готово.</p>
+  <ul>
+   <li><b>iPhone:</b> открой ссылку в Safari → «Поделиться» → «На экран Домой». Запусти с иконки и войди там (ссылка и ключ вводятся один раз).</li>
+   <li><b>Android:</b> Chrome → ⋮ → «Добавить на главный экран».</li>
+   <li><b>Компьютер:</b> Chrome → значок установки в адресной строке, или просто закладка.</li>
+  </ul>
+  <p>Удобно: отправь себе ссылку и ключ в «Избранное» Telegram и скопируй оттуда на телефоне.</p></li>
+</ol>
+
+<div class="note"><b>Где что лежит.</b> В таблице на листе «Ввод» — дата, имя и суммы в $ (драмы пересчитываются по твоему курсу). Комментарии, категории и всё подробно — в отдельном личном файле «Хасл · имя · личное» на твоём Google Диске. Лист «Dashboard» считает общую цель.</div>
+
+<details><summary>Общая таблица на двоих</summary>
+ <p>Если у вас уже есть общая таблица с листом «Ввод», каждый ставит <b>свой</b> скрипт: открой <a href="https://script.google.com/create" target="_blank" rel="noopener">script.google.com/create</a>, вставь код, впиши имя и ссылку на общую таблицу:</p>
+ <pre>table: 'https://docs.google.com/spreadsheets/d/…',</pre>
+ <p>Дальше шаги 3–5 как обычно. Во «Ввод» у каждого свои строки, а комментарии и категории — у каждого в своём личном файле.</p></details>
+<details><summary>Как обновиться</summary>
+ <p>Приложение обновляется само. Если вышел новый код скрипта: скопируй его здесь, вставь в Apps Script вместо старого (имя в настройках впиши снова), сохрани → «Развёртывание» → «Управление развёртываниями» → ✏️ → версия «Новая» → «Развернуть». Ссылка и ключ не меняются.</p></details>
+<details><summary>Забыл ключ</summary>
+ <p>Apps Script → ⚙ «Настройки проекта» → «Свойства скрипта» → <code>token</code>. Или удали это свойство и снова запусти <code>setup</code> — появится новый ключ.</p></details>
+</main>
+<script>
+document.getElementById('copy').onclick=async()=>{const out=document.getElementById('copied');
+ try{const code=await fetch('Code.gs.txt',{cache:'no-cache'}).then(r=>{if(!r.ok)throw 0;return r.text()});await navigator.clipboard.writeText(code);out.textContent='✓ Скопировано'}
+ catch{out.innerHTML='Не получилось — <a href="Code.gs.txt" target="_blank">открой код</a> и скопируй вручную (Ctrl+A, Ctrl+C)'}};
+</script>
+</body></html>

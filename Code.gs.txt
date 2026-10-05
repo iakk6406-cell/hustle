@@ -1,0 +1,339 @@
+/**
+ * ХАСЛ — личный учёт денег ($ и ֏) поверх Google Таблицы.
+ * Приложение: https://rubsimonian-boop.github.io/hustle/   Инструкция: …/hustle/setup.html
+ *
+ * Во «Ввод» (можно вести вместе с кем-то) идут только дата, имя и суммы в долларах (драмы — по курсу записи).
+ * Полный журнал (валюта, категория, комментарий) — в личном файле на твоём Google Диске, его видишь только ты.
+ */
+
+// ===== НАСТРОЙКИ — поменяй перед запуском setup =====
+const SETTINGS = {
+  name: 'Я',   // твоё имя — так ты будешь подписан в колонке «Кто»
+  table: '',   // ссылка на общую таблицу, если скрипт создан отдельно на script.google.com; пусто — таблица, к которой привязан скрипт
+  key: ''      // оставь пустым — ключ входа придумается сам при setup
+};
+// =====================================================
+
+const ME = String(SETTINGS.name||'').trim() || 'Я';
+const INPUT = 'Ввод', FIRST = 4, LAST = 300;          // как в Dashboard: 'Ввод'!C4:C300
+const LOG = 'Хасл · журнал';
+const PRIVATE_NAME = 'Хасл · '+ME+' · личное';
+const LEGACY_LOG = 'Alld · Хасл';                     // так журнал назывался в первой версии
+const HEAD = ['ID','Дата','Тип','Валюта','Сумма','Отложено','Откуда','Категория','Комментарий','Курс'];
+const TYPES = {income:'Доход', save:'Отложил', out:'Снял'};
+const FROM = {income:'Из дохода', savings:'Из отложений'};
+const CATEGORIES = ['Еда','Транспорт','Покупки','Подписки','Работа','Отдых','Другое'];
+const INCOME_CATEGORIES = ['Работа','Подработка','Продажи','Подарок','Другое'];
+const RATES_URL = 'https://www.rate.am/hy/armenian-dram-exchange-rates/banks';
+
+// ---------- API для приложения (POST, ключ обязателен) ----------
+const API = {getState:()=>getState_(), addEntry:addEntry_, updateEntry:updateEntry_, deleteEntry:deleteEntry_,
+  setRate:setRate_, setCategories:setCategories_, getRates:getRates_};
+function doGet(){ return ContentService.createTextOutput('ХАСЛ API'); }
+function doPost(e){
+  let out;
+  try{
+    const req=JSON.parse(e&&e.postData&&e.postData.contents||'{}');
+    const tok=token_(); if(!tok) throw Error('Скрипт не настроен — запусти setup в Apps Script');
+    if(typeof req.k!=='string'||req.k!==tok){ Utilities.sleep(800); throw Error('Неверный ключ'); }
+    const fn=API[req.fn]; if(!fn) throw Error('Неизвестная команда');
+    migrate_();
+    out={ok:true,data:fn.apply(null,Array.isArray(req.args)?req.args:[])};
+  }catch(err){ out={ok:false,error:String(err&&err.message||err)}; }
+  return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
+}
+
+// ---------- helpers ----------
+function book_(){
+  const ss=SETTINGS.table?SpreadsheetApp.openByUrl(SETTINGS.table):SpreadsheetApp.getActiveSpreadsheet();
+  if(!ss) throw Error('Нет таблицы: открой Apps Script из таблицы (Расширения → Apps Script) или впиши ссылку в SETTINGS.table');
+  return ss;
+}
+function props_(){ return PropertiesService.getScriptProperties(); }
+function token_(){ return String(SETTINGS.key||'').trim()||props_().getProperty('token')||''; }
+function num_(v){ if(typeof v==='number') return v; const n=parseFloat(String(v).replace(/\s/g,'').replace(',','.')); return isFinite(n)?n:0; }
+function round_(v){ return Math.round(num_(v)*100)/100; }
+function literal_(s){ return /^[=+\-@]/.test(s)?"'"+s:s; }
+function keyOf_(dict,label){ label=String(label||'').trim(); for(const k in dict) if(dict[k]===label||k===label) return k; return ''; }
+function ymd_(v,tz){
+  if(v instanceof Date) return Utilities.formatDate(v,tz,'yyyy-MM-dd');
+  const s=String(v||'').trim(); let m=s.match(/^(\d{4})-(\d{2})-(\d{2})/); if(m) return m[0];
+  m=s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/); if(m) return m[3]+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[1]).slice(-2);
+  return '';
+}
+function date_(ymd,tz){ return Utilities.parseDate(ymd+' 12:00',tz,'yyyy-MM-dd HH:mm'); }
+function locked_(fn){ const lock=LockService.getScriptLock(); lock.waitLock(20000); try{ return fn(); } finally { lock.releaseLock(); } }
+function rate_(){ return num_(props_().getProperty('rate')); }
+function list_(key,def){ try{ const c=JSON.parse(props_().getProperty(key)||'null'); if(Array.isArray(c)&&c.length) return c; }catch(err){} return def; }
+
+// ---------- личный файл (журнал) — только на Диске владельца ----------
+function private_(create){
+  const p=props_(), id=p.getProperty('privateId');
+  if(id){ try{ return SpreadsheetApp.openById(id); }catch(err){ throw Error('Не открывается личный журнал «'+PRIVATE_NAME+'» — он не удалён?'); } }
+  if(!create) return null;
+  const ss=SpreadsheetApp.create(PRIVATE_NAME);
+  ss.setSpreadsheetTimeZone(book_().getSpreadsheetTimeZone());
+  p.setProperty('privateId',ss.getId());
+  return ss;
+}
+function log_(create){
+  const ss=private_(create); if(!ss) return null;
+  let sh=ss.getSheetByName(LOG)||ss.getSheetByName(LEGACY_LOG);
+  if(!sh&&create){
+    sh=ss.getSheets()[0]; sh.setName(LOG);
+    sh.getRange(1,1,1,HEAD.length).setValues([HEAD]).setFontWeight('bold').setBackground('#24211b').setFontColor('#efce7b');
+    sh.setFrozenRows(1);
+    sh.getRange('B:B').setNumberFormat('dd.mm.yyyy');
+    sh.getRange('E:F').setNumberFormat('#,##0.00');
+    sh.setColumnWidth(1,80); sh.setColumnWidth(9,300);
+    sh.getRange('A:A').setFontColor('#999999').setFontSize(8);
+  }
+  if(!sh) return sh;
+  const head=sh.getRange(1,1,1,HEAD.length).getValues()[0];
+  if(head.slice(0,9).join('|')!==HEAD.slice(0,9).join('|')) throw Error('Лист «'+LOG+'» изменён вручную — заголовки не совпадают.');
+  if(head[9]!==HEAD[9]) sh.getRange(1,10).setValue(HEAD[9]).setFontWeight('bold').setBackground('#24211b').setFontColor('#efce7b');
+  return sh;
+}
+function readLog_(sh,tz){
+  if(!sh||sh.getLastRow()<2) return [];
+  return sh.getRange(2,1,sh.getLastRow()-1,HEAD.length).getValues().map((r,i)=>{
+    if(!r[1]&&r[4]==='') return null;
+    return {id:String(r[0]||('row-'+(i+2))), date:ymd_(r[1],tz), type:keyOf_(TYPES,r[2])||'income',
+      cur:String(r[3]).trim().toUpperCase()==='AMD'?'AMD':'USD', amount:round_(r[4]), saved:round_(r[5]),
+      from:keyOf_(FROM,r[6]), category:String(r[7]||''), note:String(r[8]||''), rate:round_(r[9]), src:'site'};
+  }).filter(Boolean);
+}
+function logRow_(sh,id){
+  if(sh.getLastRow()<2) return 0;
+  if(/^row-\d+$/.test(id)) return Number(id.slice(4));
+  const ids=sh.getRange(2,1,sh.getLastRow()-1,1).getValues();
+  for(let i=0;i<ids.length;i++) if(String(ids[i][0])===id) return i+2;
+  return 0;
+}
+function logValues_(e,tz){ return [e.id,date_(e.date,tz),TYPES[e.type],e.cur,e.amount,e.type==='income'?e.saved:'',FROM[e.from]||'',literal_(e.category),literal_(e.note),e.cur==='AMD'?e.rate:'']; }
+
+// ---------- лист «Ввод» (общий, если ведёте вместе) ----------
+function input_(){ const sh=book_().getSheetByName(INPUT); if(!sh) throw Error('Лист «Ввод» не найден'); return sh; }
+function readInput_(sh,tz){
+  const v=sh.getRange(FIRST,1,LAST-FIRST+1,7).getValues(), all=[];
+  v.forEach((r,i)=>{
+    if(r[0]===''&&r[1]===''&&r[2]===''&&r[3]==='') return;
+    all.push({row:FIRST+i,date:ymd_(r[0],tz),who:String(r[1]).trim(),income:round_(r[2]),saved:round_(r[3]),note:String(r[5]||''),id:String(r[6]||'')});
+  });
+  return all;
+}
+// Строка во «Ввод» в долларах: всё, кроме «снял из дохода». Драмы — по курсу записи.
+// Комментарий во «Ввод» всегда пустой: откуда деньги и куда ушли — только в личном журнале.
+function mirror_(e){
+  const amd=e.cur==='AMD';
+  if(amd&&!(e.rate>0)) return null;
+  const usd=v=>amd?Math.round(v/e.rate*100)/100:v;
+  if(e.type==='income') return [usd(e.amount),usd(e.saved),''];
+  if(e.type==='save') return [0,usd(e.amount),''];
+  if(e.type==='out'&&e.from==='savings') return [0,-usd(e.amount),''];
+  return null;
+}
+function inputRowById_(sh,id){
+  const ids=sh.getRange(FIRST,7,LAST-FIRST+1,1).getValues();
+  for(let i=0;i<ids.length;i++) if(String(ids[i][0])===id) return FIRST+i;
+  return 0;
+}
+function nextInputRow_(sh){
+  const v=sh.getRange(FIRST,1,LAST-FIRST+1,4).getValues(); let last=-1;
+  v.forEach((r,i)=>{ if(r.some(x=>x!=='')) last=i; });
+  const row=FIRST+last+1; if(row>LAST) throw Error('«Ввод» заполнен до '+LAST+' строки — Dashboard дальше не считает.');
+  return row;
+}
+function writeInput_(sh,row,e,m,tz){
+  sh.getRange(row,1,1,4).setValues([[date_(e.date,tz),ME,m[0],m[1]]]);
+  sh.getRange(row,6,1,2).setValues([[literal_(m[2]),e.id]]);
+  sh.getRange(row,7).setFontColor('#bbbbbb').setFontSize(6);
+}
+function clearInput_(sh,row){ sh.getRange(row,1,1,4).clearContent(); sh.getRange(row,6,1,2).clearContent(); }
+function syncInput_(before,after,tz){
+  const m=after?mirror_(after):null, id=(after||before).id;
+  if(!m&&!(before&&mirror_(before))) return;
+  const sh=input_(), row=inputRowById_(sh,id);
+  if(m) writeInput_(sh,row||nextInputRow_(sh),after,m,tz);
+  else if(row) clearInput_(sh,row);
+}
+// Один раз: журнал переезжает из общей таблицы в личный файл, из «Ввод» убираются тексты записей приложения.
+function migratePrivate_(){
+  if(props_().getProperty('migrated-private')==='1') return;
+  locked_(()=>{
+    if(props_().getProperty('migrated-private')==='1') return;
+    const shared=book_(), old=shared.getSheetByName(LEGACY_LOG);
+    if(old){
+      const sh=log_(true), n=old.getLastRow()-1;
+      if(n>0){
+        const rows=old.getRange(2,1,n,HEAD.length).getValues();
+        if(sh.getLastRow()<2) sh.getRange(2,1,n,HEAD.length).setValues(rows);
+        SpreadsheetApp.flush();
+        if(sh.getLastRow()-1!==n) throw Error('Перенос журнала не сошёлся — общий лист не тронут');
+      }
+      shared.deleteSheet(old);
+    }
+    const inp=input_(), ids=inp.getRange(FIRST,7,LAST-FIRST+1,1).getValues();
+    ids.forEach((r,i)=>{ if(String(r[0])) inp.getRange(FIRST+i,6).setValue(''); });
+    props_().setProperty('migrated-private','1');
+  });
+}
+// ===== Запусти один раз в редакторе Apps Script: выбери «setup» → «Выполнить» =====
+function setup(){
+  if(!String(SETTINGS.name||'').trim()||ME==='Я') Logger.log('Совет: впиши своё имя в SETTINGS.name (сейчас «'+ME+'»).');
+  ensureTable_(book_());
+  let key=token_();
+  if(!key){ key=Utilities.getUuid().replace(/-/g,'').slice(0,24); props_().setProperty('token',key); }
+  migratePrivate_(); migrate_();
+  const ss=private_(true); log_(true);
+  Logger.log(['','✅ Готово, '+ME+'!','',
+    'Ключ входа:  '+key,'(сохрани его, никому не показывай)','',
+    'Личный журнал: '+ss.getUrl(),'',
+    'Дальше: «Начать развёртывание» → «Новое развёртывание» → ⚙ «Веб-приложение»,',
+    'запуск от имени: «Я», доступ: «Все» → «Развернуть» → скопируй ссылку, которая кончается на /exec.',
+    'Открой https://rubsimonian-boop.github.io/hustle/ и вставь эту ссылку и ключ.'].join('\n'));
+}
+function setupPrivate(){ setup(); }                   // старое имя из первой версии
+// Если в таблице нет листов «Ввод» и Dashboard — создаёт их (в том же виде, что Grind).
+function ensureTable_(ss){
+  const blank=ss.getSheets().filter(s=>s.getLastRow()===0&&/^(Лист|Sheet)\s*1$/.test(s.getName()));
+  if(!ss.getSheetByName(INPUT)){
+    const sh=ss.insertSheet(INPUT,0);
+    sh.getRange('A1:G1').merge().setValue('MONEY HUSTLE — журнал доходов и накоплений').setFontWeight('bold').setFontSize(14);
+    sh.getRange('A2:G2').merge().setValue('Каждый доход и сколько отложили. Dashboard считает сам.').setFontColor('#777777');
+    sh.getRange(3,1,1,6).setValues([['Дата','Кто','Доход ($)','Отложено ($)','% от дохода','Комментарий']]).setFontWeight('bold').setBackground('#24211b').setFontColor('#efce7b');
+    sh.setFrozenRows(3);
+    const f=[];for(let r=FIRST;r<=LAST;r++) f.push(['=IF(OR(C'+r+'="",D'+r+'=""),"",IFERROR(D'+r+'/C'+r+',0))']);
+    sh.getRange(FIRST,5,f.length,1).setFormulas(f).setNumberFormat('0%');
+    sh.getRange(FIRST,1,LAST-FIRST+1,1).setNumberFormat('dd.mm.yyyy');
+    sh.getRange(FIRST,3,LAST-FIRST+1,2).setNumberFormat('$#,##0.00');
+    sh.setColumnWidth(6,260); sh.setColumnWidth(7,40);
+  }
+  if(!ss.getSheetByName('Dashboard')){
+    const d=ss.insertSheet('Dashboard',1);
+    d.getRange('A1').setValue('MONEY HUSTLE — общий прогресс').setFontWeight('bold').setFontSize(14);
+    d.getRange('A4:C4').setValues([['🎯 ЦЕЛЬ ($)',1000,'← поменяй под свою цель']]);
+    d.getRange('A6:G6').setValues([['ВСЕГО ДОХОД','','ВСЕГО ОТЛОЖЕНО','','ПРОГРЕСС','','ОСТАЛОСЬ']]).setFontWeight('bold');
+    d.getRange('A7:G7').setFormulas([["=SUM('"+INPUT+"'!C"+FIRST+":C"+LAST+")",'',"=SUM('"+INPUT+"'!D"+FIRST+":D"+LAST+")",'','=IFERROR(C7/B4,0)','','=MAX(B4-C7,0)']]);
+    d.getRange('A7:D7').setNumberFormat('$#,##0.00'); d.getRange('E7').setNumberFormat('0%'); d.getRange('G7').setNumberFormat('$#,##0.00');
+  }
+  blank.forEach(s=>{ if(ss.getSheets().length>1) ss.deleteSheet(s); });
+}
+// Один раз: старые записи в драмах (до этой версии) получают курс и строку во «Ввод».
+function migrate_(){
+  migratePrivate_();
+  if(props_().getProperty('migrated')==='amd-v2') return;
+  const rate=rate_(); if(!(rate>0)) return;                 // без курса перенести нельзя — попробуем позже
+  locked_(()=>{
+    if(props_().getProperty('migrated')==='amd-v2') return;
+    const tz=book_().getSpreadsheetTimeZone(), sh=log_(false);
+    if(sh) readLog_(sh,tz).forEach(e=>{
+      if(e.cur!=='AMD') return;
+      if(!(e.rate>0)){ e.rate=rate; sh.getRange(logRow_(sh,e.id),10).setValue(rate); }
+      if(mirror_(e)&&!inputRowById_(input_(),e.id)) syncInput_(null,e,tz);
+    });
+    props_().setProperty('migrated','amd-v2');
+  });
+}
+
+// ---------- проверка записи ----------
+function clean_(e,id,keepRate){
+  if(!e||typeof e!=='object') throw Error('Пустая запись');
+  if(!TYPES[e.type]) throw Error('Неизвестный тип записи');
+  if(e.cur!=='USD'&&e.cur!=='AMD') throw Error('Валюта: $ или ֏');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(e.date)) throw Error('Проверь дату');
+  const amount=round_(e.amount), saved=e.type==='income'?round_(e.saved||0):0;
+  if(!(amount>0)||amount>1e10) throw Error('Сумма должна быть больше нуля');
+  if(saved<0||saved>amount) throw Error('Отложить можно от 0 до суммы дохода');
+  let rate=0;
+  if(e.cur==='AMD'){ rate=round_(e.rate)||keepRate||rate_(); if(!(rate>0&&rate<100000)) throw Error('Сначала поставь курс (֏ за 1 $) — драмы идут в таблицу в долларах'); }
+  const s=(x,n)=>String(x||'').trim().slice(0,n);
+  return {id:id||(/^[\w-]{8,64}$/.test(e.id||'')?e.id:Utilities.getUuid()), date:e.date, type:e.type, cur:e.cur,
+    amount, saved, rate, from:e.type==='out'?(e.from==='savings'?'savings':'income'):'',
+    category:e.type==='save'?'':s(e.category,40), note:s(e.note,300)};
+}
+
+// ---------- API ----------
+function getState_(){
+  const ss=book_(), tz=ss.getSpreadsheetTimeZone();
+  const log=readLog_(log_(false),tz), ids=new Set(log.map(e=>e.id));
+  const all=readInput_(input_(),tz);
+  const table=all.filter(r=>r.who===ME&&!(r.id&&ids.has(r.id))&&(r.income||r.saved)).map(r=>({
+    id:'vvod-'+r.row, date:r.date, cur:'USD', src:'table', note:r.note, category:'', rate:0,
+    type:r.income>0?'income':(r.saved<0?'out':'save'), amount:r.income>0?r.income:Math.abs(r.saved),
+    saved:r.income>0?r.saved:0, from:r.income<=0&&r.saved<0?'savings':''}));
+  const dash=ss.getSheetByName('Dashboard'), mine=all.filter(r=>r.who===ME);
+  return {me:ME, entries:log.concat(table), rate:rate_(),
+    categories:list_('categories',CATEGORIES), incomeCategories:list_('incomeCategories',INCOME_CATEGORIES),
+    shared:{goal:dash?num_(dash.getRange('B4').getValue()):0, saved:round_(all.reduce((s,r)=>s+r.saved,0)), mine:round_(mine.reduce((s,r)=>s+r.saved,0))},
+    url:ss.getUrl(), privateUrl:(private_(false)||{getUrl:()=>''}).getUrl(), updated:new Date().toISOString()};
+}
+function addEntry_(e){
+  return locked_(()=>{
+    const tz=book_().getSpreadsheetTimeZone(), sh=log_(true), c=clean_(e);
+    if(logRow_(sh,c.id)) return getState_();               // повторная отправка — уже сохранено
+    sh.appendRow(logValues_(c,tz));
+    syncInput_(null,c,tz);
+    return getState_();
+  });
+}
+function updateEntry_(e){
+  return locked_(()=>{
+    const tz=book_().getSpreadsheetTimeZone(), sh=log_(true), row=logRow_(sh,String(e&&e.id));
+    if(!row) throw Error('Запись не найдена — обнови страницу');
+    const before=readLog_(sh,tz).find(x=>x.id===String(e.id)), c=clean_(e,before.id,before.rate);
+    sh.getRange(row,1,1,HEAD.length).setValues([logValues_(c,tz)]);
+    syncInput_(before,c,tz);
+    return getState_();
+  });
+}
+function deleteEntry_(id){
+  return locked_(()=>{
+    const tz=book_().getSpreadsheetTimeZone(), sh=log_(true), row=logRow_(sh,String(id));
+    if(!row) throw Error('Запись не найдена — обнови страницу');
+    const before=readLog_(sh,tz).find(x=>x.id===String(id));
+    syncInput_(before,null,tz);
+    sh.deleteRow(row);
+    return getState_();
+  });
+}
+function setRate_(rate){
+  const r=round_(rate); if(!(r>0&&r<100000)) throw Error('Курс — число драмов за 1 $');
+  props_().setProperty('rate',String(r)); migrate_(); return getState_();
+}
+function setCategories_(list,kind){
+  if(!Array.isArray(list)) throw Error('Нужен список');
+  const clean=[...new Set(list.map(x=>String(x||'').trim().slice(0,40)).filter(Boolean))].slice(0,40);
+  if(!clean.length) throw Error('Нужна хотя бы одна категория');
+  props_().setProperty(kind==='income'?'incomeCategories':'categories',JSON.stringify(clean)); return getState_();
+}
+
+// ---------- курсы rate.am ----------
+function getRates_(force){
+  const cache=CacheService.getScriptCache();
+  if(!force){ const c=cache.get('rates'); if(c) return JSON.parse(c); }
+  const res=UrlFetchApp.fetch(RATES_URL,{muteHttpExceptions:true,headers:{'User-Agent':'Mozilla/5.0','Accept-Language':'hy,ru;q=0.8'}});
+  if(res.getResponseCode()!==200) throw Error('rate.am не ответил ('+res.getResponseCode()+')');
+  const rates=parseRates_(res.getContentText());
+  cache.put('rates',JSON.stringify(rates),1200);
+  return rates;
+}
+function parseRates_(html){
+  let flight=''; const re=/self\.__next_f\.push\(\[1,("(?:[^"\\]|\\.)*")\]\)/g; let m;
+  while((m=re.exec(html))) flight+=JSON.parse(m[1]);
+  const map={};
+  flight.split('\n').forEach(line=>{ const x=line.match(/^([0-9a-f]+):(\{.*\})$/); if(x){ try{ map[x[1]]=JSON.parse(x[2]); }catch(err){} } });
+  const ref=v=>typeof v==='string'&&v.charAt(0)==='$'?map[v.slice(1)]:v;
+  const isHolder=v=>{ const h=ref(v); return !!(h&&typeof h==='object'&&'rates' in h); };
+  const list=Object.values(map).map(o=>Object.entries(o||{})).find(en=>en.length>3&&en.every(([k,v])=>isHolder(v)))||[];
+  const banks=[];
+  list.forEach(([slug,v])=>{
+    const holder=ref(v), usd=ref((ref(holder.rates)||{}).USD)||{}, cash=ref(usd.CASH)||{};
+    const buy=Number(cash.buy), sell=Number(cash.sell);
+    if(buy>0&&sell>0) banks.push({bank:slug.split('-').map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' '),buy,sell,updated:Number(holder.lastUpdated)||0});
+  });
+  if(!banks.length) throw Error('Не удалось прочитать курсы с rate.am');
+  const pick=(key,dir)=>banks.reduce((a,b)=>dir*(b[key]-a[key])>0?b:a);
+  return {banks:banks.length, buyMin:pick('buy',-1), buyMax:pick('buy',1), sellMin:pick('sell',-1), sellMax:pick('sell',1),
+    updated:Math.max.apply(null,banks.map(b=>b.updated))||Date.now()};
+}
