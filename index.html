@@ -128,14 +128,32 @@ function fmt(v,cur){const d=cur==='USD'?2:0;return new Intl.NumberFormat('ru-RU'
 function parse(v,zero){const t=String(v).replace(/\s/g,'').replace(',','.');if(!t&&zero)return 0;if(!/^\d+(\.\d{1,2})?$/.test(t))throw Error('Введи сумму, например 12,50');const n=Math.round(Number(t)*100)/100;if(!zero&&!(n>0))throw Error('Сумма должна быть больше нуля');return n}
 const API='https://script.google.com/macros/s/AKfycbwCmwsRq_MAvaSUv4S3te8_5bCdTCkoZhKlBqG9LkiSpAbPcpbPepMUq74N7hUWzkt2/exec';
 let KEY='';try{KEY=localStorage.getItem('hustle-key')||''}catch{}
+const offlineErr=msg=>{const e=Error(msg);e.offline=true;return e};
 async function rpc(name,...args){
- let res;try{res=await fetch(API,{method:'POST',body:JSON.stringify({k:KEY,fn:name,args})})}catch{throw Error('Нет интернета')}
- let out;try{out=await res.json()}catch{throw Error('Сервер ответил странно ('+res.status+')')}
- if(!out.ok){if(out.error==='Неверный ключ')showLogin('Неверный ключ');throw Error(out.error)}
+ let res;try{res=await fetch(API,{method:'POST',body:JSON.stringify({k:KEY,fn:name,args})})}catch{S.offline=true;throw offlineErr('Нет интернета')}
+ let out;try{out=await res.json()}catch{S.offline=true;throw offlineErr('Сервер не ответил ('+res.status+')')}
+ S.offline=false;
+ if(!out.ok){const e=Error(out.error);if(out.error==='Неверный ключ'){e.auth=true;showLogin('Неверный ключ')}throw e}
  return out.data}
+// --- офлайн: последнее состояние с сервера + очередь неотправленных действий ---
+const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
+let BASE=LS.get('hustle-state',null),OUTBOX=LS.get('hustle-outbox',[]),flushing=false;
+function applyOp(st,op){const a=op.args[0];st={...st,entries:st.entries.slice()};
+ if(op.fn==='addEntry'){if(!st.entries.some(e=>e.id===a.id))st.entries.push({...a,saved:a.saved||0,src:'site'})}
+ else if(op.fn==='updateEntry')st.entries=st.entries.map(e=>e.id===a.id?{...a,saved:a.saved||0,src:'site'}:e);
+ else if(op.fn==='deleteEntry')st.entries=st.entries.filter(e=>e.id!==a);
+ else if(op.fn==='setRate')st.rate=a;else if(op.fn==='setCategories')st.categories=a;
+ return st}
+function show(){S.state=BASE?OUTBOX.reduce(applyOp,BASE):null;if(S.state)render()}
+function setBase(st){BASE=st;LS.set('hustle-state',st)}
+async function flush(){if(flushing||!KEY)return;flushing=true;try{
+ while(OUTBOX.length){const op=OUTBOX[0];
+  try{setBase(await rpc(op.fn,...op.args))}catch(err){if(err.offline||err.auth)break;if(!(op.fn==='deleteEntry'&&/не найдена/.test(err.message)))note('Не сохранилось в таблицу: '+err.message,true)}
+  OUTBOX.shift();LS.set('hustle-outbox',OUTBOX)}
+ }finally{flushing=false;show()}}
 function showLogin(msg){$('login').hidden=false;$('login-msg').textContent=msg||'';setTimeout(()=>$('key').focus(),50)}
 $('login-form').onsubmit=async ev=>{ev.preventDefault();KEY=$('key').value.trim();$('login-msg').textContent='Проверяю…';
- try{S.state=await rpc('getState');try{localStorage.setItem('hustle-key',KEY)}catch{}$('login').hidden=true;$('key').value='';render();loadRates(false)}catch(err){$('login-msg').textContent=err.message}};
+ try{setBase(await rpc('getState'));try{localStorage.setItem('hustle-key',KEY)}catch{}$('login').hidden=true;$('key').value='';show();loadRates(false);flush()}catch(err){$('login-msg').textContent=err.message}};
 function el(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=text;return n}
 function seg(id,value,onPick){const box=$(id);box.querySelectorAll('button').forEach(b=>{b.type='button';b.classList.toggle('on',b.dataset.v===value);b.onclick=()=>onPick(b.dataset.v)})}
 function note(msg,err){$('notice').textContent=msg||'';$('notice').classList.toggle('err',!!err)}
@@ -146,7 +164,9 @@ function wallets(entries){
  for(const c in w){const x=w[c];x.free=Math.round((x.income-x.toSave-x.outIncome)*100)/100;x.saved=Math.round((x.toSave-x.outSavings)*100)/100;x.total=Math.round((x.free+x.saved)*100)/100}
  return w;
 }
-function controls(){for(const id of ['submit','refresh','rate-save']){$(id).disabled=S.busy||!S.state}}
+function controls(){for(const id of ['submit','rate-save'])$(id).disabled=!S.state;$('refresh').disabled=S.busy}
+function statusText(){const t=BASE?new Date(BASE.updated).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}):'';
+ if(OUTBOX.length)return '⏳ ждут сети: '+OUTBOX.length;return S.offline?'офлайн · данные от '+t:'✓ '+t}
 
 function render(){
  const st=S.state;if(!st)return;const w=wallets(st.entries),r=st.rate;
@@ -159,7 +179,7 @@ function render(){
  const sel=$('category'),keep=sel.value;sel.replaceChildren(...st.categories.map(c=>el('option',null,c)));if(st.categories.includes(keep))sel.value=keep;
  $('chips').replaceChildren(...st.categories.map(c=>{const ch=el('span','chip',c),x=el('button',null,'×');x.type='button';x.title='Удалить';x.onclick=()=>saveCats(st.categories.filter(y=>y!==c));ch.append(x);return ch}));
  const g=st.shared;if(g.goal>0){$('goal-text').textContent=fmt(g.saved,'USD')+' из '+fmt(g.goal,'USD');$('goal-left').textContent='осталось '+fmt(Math.max(g.goal-g.saved,0),'USD');$('goal-bar').value=Math.min(100,g.saved/g.goal*100);$('goal-mine').textContent='Твой вклад: '+fmt(w.USD.saved,'USD')+' · '+(g.saved>0?Math.round(w.USD.saved/g.saved*100):0)+'% от общего'}else $('goal-card').hidden=true;
- $('sheet').href=st.url;$('status').textContent='✓ '+new Date(st.updated).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+ $('sheet').href=st.url;$('status').textContent=statusText();
  renderMonth();renderHistory();hint();controls();
 }
 
@@ -213,7 +233,7 @@ function startEdit(e){S.edit=e;S.pending=null;$('form-card').classList.add('edit
  setCur(e.cur);setFrom(e.from||'income');$('amount').value=String(e.amount).replace('.',',');$('saved').value=e.saved?String(e.saved).replace('.',','):'';$('date').value=e.date;$('note').value=e.note;if(e.category&&!S.state.categories.includes(e.category))$('category').append(el('option',null,e.category));$('category').value=e.category||S.state.categories[0];setType(e.type);note('');$('form-card').scrollIntoView({behavior:'smooth',block:'start'})}
 $('cancel-edit').onclick=()=>{resetForm();note('')};
 
-async function call(fn,...args){if(S.busy)return false;S.busy=true;controls();try{S.state=await rpc(fn,...args);render();return true}catch(err){note(err.message,true);return false}finally{S.busy=false;controls()}}
+async function call(fn,...args){if(!S.state)return false;OUTBOX.push({fn,args});LS.set('hustle-outbox',OUTBOX);show();flush();return true}
 $('form').onsubmit=async ev=>{ev.preventDefault();if(S.busy||!S.state)return;
  let draft;try{draft={type:S.type,cur:S.cur,date:$('date').value,amount:parse($('amount').value),saved:S.type==='income'?parse($('saved').value,true):0,from:S.type==='out'?S.from:'',category:S.type==='out'?$('category').value:'',note:$('note').value.trim()};
   if(draft.saved>draft.amount)throw Error('Нельзя отложить больше дохода');if(!/^\d{4}-\d{2}-\d{2}$/.test(draft.date))throw Error('Выбери дату')}catch(err){note(err.message,true);return}
@@ -221,7 +241,7 @@ $('form').onsubmit=async ev=>{ev.preventDefault();if(S.busy||!S.state)return;
  if(draft.type==='out'){const have=draft.from==='savings'?w.saved:w.free;if(draft.amount>have&&!confirm('Там только '+fmt(have,draft.cur)+'. Всё равно записать?'))return}
  if(draft.type==='save'&&draft.amount>w.free&&!confirm('Свободно только '+fmt(w.free,draft.cur)+'. Всё равно отложить?'))return;
  let ok;if(S.edit){ok=await call('updateEntry',{...draft,id:S.edit.id})}else{const fp=JSON.stringify(draft);if(!S.pending||S.pending.fp!==fp)S.pending={fp,id:crypto.randomUUID()};ok=await call('addEntry',{...draft,id:S.pending.id})}
- if(ok){const was=S.edit;resetForm();note(was?'Изменено.':'Записано: '+describe(draft).t.toLowerCase()+' '+fmt(draft.amount,draft.cur)+'.');$('amount').focus()}
+ if(ok){const was=S.edit;resetForm();note((was?'Изменено.':'Записано: '+describe(draft).t.toLowerCase()+' '+fmt(draft.amount,draft.cur)+'.')+(S.offline?' В таблицу отправлю, когда появится интернет.':''));$('amount').focus()}
 };
 async function remove(e){if(!confirm('Удалить запись «'+describe(e).t+' '+fmt(e.amount,e.cur)+'» от '+e.date.split('-').reverse().join('.')+'?'+(e.cur==='USD'&&(e.type!=='out'||e.from==='savings')?'\nСтрока во «Ввод» тоже очистится.':'')))return;if(await call('deleteEntry',e.id)){if(S.edit&&S.edit.id===e.id)resetForm();note('Удалено.')}}
 $('rate-save').onclick=async()=>{let r;try{r=parse($('rate').value)}catch(err){note(err.message,true);return}if(await call('setRate',r))note('Курс сохранён: '+fmt(r,'AMD')+' за 1 $')};
@@ -237,13 +257,15 @@ function renderRates(x){const box=$('rates');box.replaceChildren();
  const card=(title,lo,hi,key)=>{const b=el('div','rate-box');b.append(el('small',null,title));const r1=el('div');r1.append(el('span',null,'дешевле: '+lo.bank),el('b',null,fmt(lo[key],'AMD')));const r2=el('div');r2.append(el('span',null,'дороже: '+hi.bank),el('b',null,fmt(hi[key],'AMD')));b.append(r1,r2);return b};
  box.append(card('Банк покупает $ (ты продаёшь)',x.buyMin,x.buyMax,'buy'),card('Банк продаёт $ (ты покупаешь)',x.sellMin,x.sellMax,'sell'));
  $('rates-note').textContent='rate.am · наличные · '+x.banks+' банков · '+new Date(x.updated).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
-async function loadRates(force){try{S.rates=await rpc('getRates',!!force);renderRates(S.rates)}catch(err){$('rates').replaceChildren(el('div','rate-box muted','Курсы rate.am недоступны: '+err.message))}}
+async function loadRates(force){const saved=LS.get('hustle-rates',null);if(saved&&!S.rates)renderRates(saved);
+ try{S.rates=await rpc('getRates',!!force);LS.set('hustle-rates',S.rates);renderRates(S.rates)}catch(err){if(saved){renderRates(saved);$('rates-note').textContent+=' · сохранено ранее (нет сети)'}else $('rates').replaceChildren(el('div','rate-box muted','Курсы rate.am недоступны: '+err.message))}}
 $('rates-refresh').onclick=()=>loadRates(true);
 
-async function refresh(){if(S.busy)return;S.busy=true;controls();try{S.state=await rpc('getState');render()}catch(err){$('status').textContent='Не удалось обновить: '+err.message}finally{S.busy=false;controls()}}
+async function refresh(){if(S.busy||flushing)return;if(OUTBOX.length)return flush();S.busy=true;controls();try{setBase(await rpc('getState'));show()}catch(err){if(!err.offline&&!err.auth)note('Не удалось обновить: '+err.message,true);if(S.state)$('status').textContent=statusText()}finally{S.busy=false;controls()}}
 $('refresh').onclick=refresh;
 seg('type-seg','income',setType);seg('cur-seg','USD',setCur);seg('from-seg','income',setFrom);$('date').value=today();
-if(KEY){refresh();loadRates(false)}else showLogin();
+if(KEY){show();refresh();loadRates(false)}else showLogin();
+window.addEventListener('online',()=>{if(KEY)refresh()});window.addEventListener('offline',()=>{S.offline=true;if(S.state)$('status').textContent=statusText()});
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 setInterval(()=>{if(KEY&&!document.hidden&&!S.edit)refresh()},60000);
 document.addEventListener('visibilitychange',()=>{if(KEY&&!document.hidden&&!S.edit)refresh()});
