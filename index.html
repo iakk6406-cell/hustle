@@ -166,8 +166,9 @@ progress{width:100%;height:9px;accent-color:var(--gold)}
    <form class="row" data-kind="income" style="margin-top:10px"><input class="grow" maxlength="40" placeholder="Новый источник"><button>Добавить</button></form></div>
   <div class="card" id="goal-card"><h2>Общая цель с Tate</h2><div class="kv" style="border:0"><b class="num" id="goal-text">—</b><span class="muted num" id="goal-left"></span></div>
    <progress id="goal-bar" max="100" value="0"></progress><small id="goal-mine"></small></div>
-  <div class="card"><a id="sheet-link" target="_blank" rel="noopener" style="color:var(--gold)">Открыть таблицу ↗</a>
-   <p class="muted" style="font-size:13px;margin:10px 0 0">Каждая запись идёт во «Ввод» в долларах (драмы — по курсу на момент записи, в комментарии исходная сумма в ֏). «Снял из дохода» в таблицу не идёт. Полный журнал — лист «Alld · Хасл».</p>
+  <div class="card"><a id="sheet-link" target="_blank" rel="noopener" style="color:var(--gold)">Общая таблица с Tate ↗</a><br>
+   <a id="private-link" target="_blank" rel="noopener" style="color:var(--gold);display:inline-block;margin-top:8px">Мой личный журнал ↗</a>
+   <p class="muted" style="font-size:13px;margin:10px 0 0">Во «Ввод» идут только дата и суммы в $ (драмы — по курсу на момент записи), без комментариев и категорий. «Снял из дохода» туда не идёт. Комментарии, категории и источники — только в личном журнале на твоём Google Диске, Tate его не видит.</p>
    <button class="ghost" id="logout" style="margin-top:8px;padding-left:0">Выйти на этом устройстве</button></div>
  </section>
 </div>
@@ -380,7 +381,7 @@ function renderMore(){const st=S.state;if(document.activeElement!==$('rate'))$('
  chips('cats-out',st.categories,'out');chips('cats-in',st.incomeCategories||[],'income');
  const g=st.shared;if(g&&g.goal>0){$('goal-card').hidden=false;$('goal-text').textContent=fmt(g.saved,'USD')+' из '+fmt(g.goal,'USD');$('goal-left').textContent='осталось '+fmt(Math.max(g.goal-g.saved,0),'USD');$('goal-bar').value=Math.min(100,g.saved/g.goal*100);
   const mine=g.mine!=null?g.mine:0;$('goal-mine').textContent='Твой вклад: '+fmt(mine,'USD')+' · '+(g.saved>0?Math.round(mine/g.saved*100):0)+'% от общего'}else $('goal-card').hidden=true;
- $('sheet-link').href=st.url||'#'}
+ $('sheet-link').href=st.url||'#';$('private-link').href=st.privateUrl||'#';$('private-link').hidden=!st.privateUrl}
 document.querySelectorAll('form[data-kind]').forEach(f=>f.onsubmit=ev=>{ev.preventDefault();const inp=f.querySelector('input'),v=inp.value.trim();if(!v||!S.state)return;const kind=f.dataset.kind,list=kind==='income'?(S.state.incomeCategories||[]):S.state.categories;if(list.includes(v))return note('Уже есть');call('setCategories',[...list,v],kind);inp.value=''});
 $('rate-save').onclick=()=>{let r;try{r=parse($('rate').value)}catch(err){return note(err.message,true)}call('setRate',r);note('Курс сохранён: '+fmt(r,'AMD')+' за 1 $')};
 function renderRates(x){const box=$('rates');box.replaceChildren();
