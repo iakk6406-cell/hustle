@@ -1,132 +1,218 @@
 <!doctype html>
-<html lang="ru"><head><meta charset="utf-8"><title>ХАСЛ</title>
+<html lang="ru"><head>
+<meta charset="utf-8"><title>ХАСЛ</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="ХАСЛ">
 <meta name="theme-color" content="#10100f"><meta name="color-scheme" content="dark">
 <link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-180.png"><link rel="icon" href="icon-192.png">
 <style>
-:root{--bg:#10100f;--card:#1c1b19;--line:#34322b;--text:#efe9de;--muted:#a9a397;--gold:#e2bf72;--gold-ink:#1a1710;--green:#7fc79a;--red:#e48a7a;--field:#131312}
+:root{--bg:#10100f;--card:#1c1b19;--card2:#232220;--line:#33312b;--text:#f1ebe0;--muted:#a9a397;--faint:#77736a;--gold:#e2bf72;--gold-ink:#1a1710;--field:#141413;
+ --in:#3987e5;--out:#e66767;--grid:#2c2b27;--err:#ef8f80;--tab-h:64px}
 [hidden]{display:none!important}*{box-sizing:border-box}
+html{background:var(--bg);overscroll-behavior-y:none}
 body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,'Segoe UI',sans-serif;-webkit-text-size-adjust:100%}
-main{max-width:980px;margin:auto;padding:max(22px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) calc(90px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
-html{background:var(--bg);overscroll-behavior-y:none}button,a{-webkit-tap-highlight-color:transparent}
-input,select{font-size:16px}
-#login{position:fixed;inset:0;z-index:10;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px}#login .card{width:100%;max-width:380px}
-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
-.brand{letter-spacing:.22em;color:var(--gold);font-weight:600;white-space:nowrap}
-.hdr{display:flex;align-items:center;gap:4px;min-width:0;text-align:right}.brand span{color:var(--muted);letter-spacing:.08em;font-weight:400}
-#status{font-size:13px;color:var(--muted)}
-.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px;margin:14px 0}
-h2{font-size:16px;font-weight:600;margin:0 0 14px}small,.muted{color:var(--muted)}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}.grid2>.card{margin:0}
-.wallet .big{font-size:30px;font-weight:600;letter-spacing:-.5px;margin:4px 0 12px;font-variant-numeric:tabular-nums}
-.kv{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid #ffffff0d;font-variant-numeric:tabular-nums}
+button,a{-webkit-tap-highlight-color:transparent}button,input,select,textarea{font:inherit;color:inherit}input,select,textarea{font-size:16px}
+#app{max-width:860px;margin:auto;padding:max(14px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) calc(var(--tab-h) + 24px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.brand{letter-spacing:.22em;color:var(--gold);font-weight:600;white-space:nowrap}.brand span{color:var(--muted);letter-spacing:.06em;font-weight:400}
+.hdr{display:flex;align-items:center;gap:2px;font-size:13px;color:var(--muted);text-align:right}
+h1{font-size:22px;margin:4px 0 12px;font-weight:600}h2{font-size:15px;font-weight:600;margin:0 0 12px}
+small,.muted{color:var(--muted)}.faint{color:var(--faint)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin:12px 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.grid2>.card{margin:0}
+.num{font-variant-numeric:tabular-nums}
+.big{font-size:28px;font-weight:650;letter-spacing:-.5px;margin:2px 0 10px}
+.kv{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid #ffffff0d}
 .kv b{font-weight:600}
-.total{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline}.total strong{font-size:20px}
-button,input,select{font:inherit;color:inherit}
-button{cursor:pointer;border:1px solid #ffffff1f;background:#ffffff0a;border-radius:11px;padding:10px 14px}
-button:hover{border-color:var(--gold)}button:disabled{opacity:.45;cursor:wait}
-.primary{background:var(--gold);color:var(--gold-ink);border-color:var(--gold);font-weight:600}
-.ghost{background:none;border:0;padding:6px 8px;color:var(--muted)}.ghost:hover{color:var(--text)}
-.seg{display:inline-flex;background:var(--field);border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px;flex-wrap:wrap}
-.seg button{border:0;background:none;padding:8px 13px;border-radius:9px;color:var(--muted)}
-.seg button.on{background:var(--gold);color:var(--gold-ink);font-weight:600}
+.sv{color:var(--gold)}
+button{cursor:pointer;border:1px solid #ffffff1f;background:#ffffff0a;border-radius:12px;padding:10px 14px}
+button:disabled{opacity:.45}
+.primary{background:var(--gold);color:var(--gold-ink);border-color:var(--gold);font-weight:650}
+.ghost{background:none;border:0;padding:6px 8px;color:var(--muted)}
+.danger{color:var(--err);border-color:#ef8f8044;background:none}
+.seg{display:inline-flex;background:var(--field);border:1px solid var(--line);border-radius:12px;padding:3px;gap:2px;max-width:100%;overflow-x:auto;scrollbar-width:none}
+.seg::-webkit-scrollbar{display:none}
+.seg button{border:0;background:none;padding:8px 12px;border-radius:9px;color:var(--muted);white-space:nowrap}
+.seg button.on{background:var(--gold);color:var(--gold-ink);font-weight:650}
+.seg.full{display:flex}.seg.full button{flex:1}
 label{display:block;font-size:13px;color:var(--muted);margin:12px 0 0}
-input,select{width:100%;margin-top:6px;padding:11px 12px;background:var(--field);border:1px solid #47443a;border-radius:10px;color:var(--text)}
-input:focus,select:focus,button:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
-.amount{font-size:24px;font-variant-numeric:tabular-nums}
-.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}.row>*{flex:1;min-width:140px}.row>.auto{flex:0 0 auto;min-width:0}
-#hint,#notice{min-height:20px;font-size:13px;margin-top:8px}#notice{color:var(--gold)}#notice.err{color:var(--red)}
-.rates{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
-.rate-box{background:var(--field);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-variant-numeric:tabular-nums}
-.rate-box div{display:flex;justify-content:space-between;gap:8px}.rate-box small{display:block}
-.month-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px}
-.month-head h2{margin:0;text-transform:capitalize}
-.bars{margin-top:10px}.bar{margin:9px 0}.bar .t{display:flex;justify-content:space-between;font-size:14px;font-variant-numeric:tabular-nums}
-.bar .track{height:7px;background:#ffffff0d;border-radius:5px;margin-top:4px;overflow:hidden}.bar .fill{height:100%;background:var(--gold);border-radius:5px}
+input,select,textarea{width:100%;margin-top:6px;padding:11px 12px;background:var(--field);border:1px solid #47443a;border-radius:11px;color:var(--text)}
+textarea{min-height:76px;resize:vertical;line-height:1.4}
+input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.row>.grow{flex:1;min-width:130px}
+.actions{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0}
+.actions button{padding:14px 6px;border-radius:14px;font-weight:600;background:var(--card);border-color:var(--line)}
+.actions .a-in b{color:var(--in)}.actions .a-sv b{color:var(--gold)}.actions .a-out b{color:var(--out)}
+.actions b{display:block;font-size:20px;line-height:1}
+/* entry list */
+.list{list-style:none;margin:0;padding:0}
+.list li{display:grid;grid-template-columns:auto 1fr auto;gap:2px 12px;align-items:center;padding:11px 2px;border-top:1px solid #ffffff0d;cursor:pointer}
+.list li:first-child{border-top:0}
+.dot{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;font-weight:700;font-size:15px;background:#ffffff0d}
+.dot.in{color:var(--in)}.dot.out{color:var(--out)}.dot.sv{color:var(--gold)}
+.what{min-width:0}.what b{font-weight:600}.what .sub{display:block;font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.what .cmt{display:block;font-size:13px;color:var(--text);opacity:.85;white-space:normal;word-break:break-word}
+.amt{text-align:right;font-weight:650}.amt small{display:block;font-weight:400}
+.tag{font-size:11px;border:1px solid var(--line);border-radius:6px;padding:0 5px;color:var(--muted);margin-left:6px;font-weight:400}
+.day-h{display:flex;justify-content:space-between;font-size:12px;color:var(--faint);text-transform:uppercase;letter-spacing:.06em;margin:16px 2px 4px}
+/* stats */
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px}
+.tile small{display:flex;align-items:center;gap:6px}.tile strong{display:block;font-size:20px;margin-top:4px;font-variant-numeric:tabular-nums}
+.tile .d{font-size:12px;color:var(--muted)}
+.sw{display:inline-block;width:10px;height:10px;border-radius:3px}
+.chart{position:relative;margin-top:8px}.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.legend{display:flex;gap:14px;font-size:13px;color:var(--muted);margin-top:6px}
+.bars .b{margin:10px 0;cursor:pointer}.bars .t{display:flex;justify-content:space-between;gap:8px;font-size:14px}
+.bars .t span:last-child{font-variant-numeric:tabular-nums;color:var(--muted);white-space:nowrap}.bars .t b{color:var(--text);font-weight:600}
+.track{height:8px;background:#ffffff0b;border-radius:4px;margin-top:5px;overflow:hidden}.fill{height:100%;border-radius:4px}
+.tip{position:fixed;z-index:30;pointer-events:none;background:#2a2926;border:1px solid #4a473e;border-radius:10px;padding:8px 10px;font-size:13px;box-shadow:0 6px 20px #0008;max-width:220px}
+.tip div{display:flex;justify-content:space-between;gap:14px;font-variant-numeric:tabular-nums}
+.period{display:flex;align-items:center;justify-content:space-between;gap:6px;margin:10px 0}
+.period b{font-weight:600;text-transform:capitalize;text-align:center;flex:1}
+.empty{color:var(--muted);text-align:center;padding:18px 0}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.chip{border:1px solid var(--line);border-radius:20px;padding:6px 12px;background:var(--field);color:var(--text)}
+.chip.on{background:var(--gold);color:var(--gold-ink);border-color:var(--gold);font-weight:600}
+.chip.x{display:inline-flex;align-items:center;gap:2px;padding:4px 4px 4px 12px}.chip.x button{border:0;background:none;padding:2px 7px;color:var(--muted)}
+.rate-box{background:var(--field);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:10px}
+.rate-box div{display:flex;justify-content:space-between;gap:8px}
 progress{width:100%;height:9px;accent-color:var(--gold)}
-.hist{list-style:none;margin:10px 0 0;padding:0}
-.hist li{display:grid;grid-template-columns:76px 1fr auto auto;gap:4px 10px;align-items:center;padding:10px 0;border-top:1px solid #ffffff0d}
-.hist .d{color:var(--muted);font-size:13px}.hist .what{min-width:0}.hist .what small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hist .sum{font-variant-numeric:tabular-nums;font-weight:600;text-align:right}
-.in{color:var(--green)}.out{color:var(--red)}.sv{color:var(--gold)}
-.tag{font-size:11px;border:1px solid var(--line);border-radius:6px;padding:1px 6px;color:var(--muted);margin-left:6px}
-.chips{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 12px}
-.chip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:20px;padding:4px 6px 4px 12px}
-.chip button{border:0;background:none;padding:2px 6px;color:var(--muted)}
-.editing{outline:2px solid var(--gold)}
-footer{margin-top:20px;font-size:13px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap;justify-content:space-between}
-footer a{color:var(--gold)}
-@media(max-width:640px){.grid2,.rates{grid-template-columns:1fr}.wallet .big{font-size:26px}.hist li{grid-template-columns:62px 1fr auto}.hist .act{grid-column:2/4;justify-self:end}}
-</style></head><body><div id="login" hidden><form class="card" id="login-form"><div class="brand" style="margin-bottom:14px">$ ХАСЛ</div><label>Ключ входа<input id="key" autocomplete="current-password" type="password" required></label><button class="primary" style="width:100%;margin-top:14px">Войти</button><div id="login-msg" class="muted" style="min-height:20px;margin-top:10px;font-size:13px"></div></form></div>
-<main>
-<header><div class="brand">$ ХАСЛ <span>· Alld</span></div><div class="hdr"><span id="status">Подключение…</span><button id="refresh" class="ghost" title="Обновить">↻</button></div></header>
+#filters{display:flex;flex-direction:column;gap:8px}
+.flt{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:14px}
+/* tab bar */
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:20;background:#141413ee;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line);
+ display:flex;justify-content:center;padding:6px max(8px,env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left))}
+.tabbar div{display:grid;grid-template-columns:repeat(5,1fr);width:100%;max-width:560px}
+.tabbar button{border:0;background:none;color:var(--faint);font-size:11px;padding:6px 0;display:flex;flex-direction:column;align-items:center;gap:2px}
+.tabbar button i{font-style:normal;font-size:20px;line-height:1.1}
+.tabbar button.on{color:var(--gold)}
+.tabbar .plus i{background:var(--gold);color:var(--gold-ink);width:42px;height:42px;border-radius:14px;display:grid;place-items:center;font-size:26px;font-weight:600;margin-top:-4px}
+/* sheet */
+.sheet{position:fixed;inset:0;z-index:40;display:flex;align-items:flex-end;justify-content:center}
+.sheet-bg{position:absolute;inset:0;background:#000a}
+.sheet-body{position:relative;width:100%;max-width:560px;max-height:94vh;overflow:auto;background:var(--card);border:1px solid var(--line);border-bottom:0;border-radius:22px 22px 0 0;
+ padding:10px 16px calc(16px + env(safe-area-inset-bottom));animation:up .18s ease-out}
+@keyframes up{from{transform:translateY(40px);opacity:.4}}
+.grab{width:42px;height:5px;border-radius:3px;background:#ffffff26;margin:2px auto 10px}
+.amount{font-size:30px;font-weight:650;text-align:center;padding:10px;font-variant-numeric:tabular-nums}
+#hint{min-height:18px;font-size:13px;color:var(--muted);text-align:center;margin-top:6px}
+#notice{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--tab-h) + 18px + env(safe-area-inset-bottom));z-index:35;background:#2a2926;border:1px solid #4a473e;border-radius:12px;padding:10px 14px;font-size:14px;max-width:min(92vw,520px);box-shadow:0 6px 20px #0008}
+#notice.err{border-color:var(--err);color:var(--err)}
+#login{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px}#login .card{width:100%;max-width:380px}
+@media(min-width:720px){.tabbar button{font-size:12px}}
+@media(max-width:640px){.tiles{grid-template-columns:1fr 1fr}.big{font-size:24px}}
+@media(max-width:380px){.grid2{grid-template-columns:1fr}}
+</style></head><body>
+<div id="login" hidden><form class="card" id="login-form"><div class="brand" style="margin-bottom:14px">$ ХАСЛ</div><label>Ключ входа<input id="key" autocomplete="current-password" type="password" required></label><button class="primary" style="width:100%;margin-top:14px">Войти</button><div id="login-msg" class="muted" style="min-height:20px;margin-top:10px;font-size:13px"></div></form></div>
 
-<div class="grid2">
- <section class="card wallet"><small>ДОЛЛАРЫ</small><div class="big" id="usd-total">—</div>
-  <div class="kv"><span>Свободно (из дохода)</span><b id="usd-free">—</b></div>
-  <div class="kv"><span>Отложено</span><b class="sv" id="usd-saved">—</b></div></section>
- <section class="card wallet"><small>ДРАМЫ</small><div class="big" id="amd-total">—</div>
-  <div class="kv"><span>Свободно (из дохода)</span><b id="amd-free">—</b></div>
-  <div class="kv"><span>Отложено</span><b class="sv" id="amd-saved">—</b></div></section>
-</div>
-<section class="card"><div class="total"><small>ВСЕГО ПО МОЕМУ КУРСУ</small><strong id="all-amd">—</strong><span class="muted" id="all-usd"></span></div>
- <div class="total" style="margin-top:6px"><small>ОТЛОЖЕНО ВСЕГО</small><strong class="sv" id="all-saved-amd">—</strong><span class="muted" id="all-saved-usd"></span></div></section>
+<div id="app">
+ <div class="top"><div class="brand">$ ХАСЛ <span>· Alld</span></div><div class="hdr"><span id="status">…</span><button id="refresh" class="ghost" title="Обновить">↻</button></div></div>
 
-<section class="card" id="form-card">
- <div class="row" style="align-items:center"><h2 id="form-title" style="margin:0">Новая запись</h2><button id="cancel-edit" class="ghost auto" hidden>✕ Отмена</button></div>
- <div class="row" style="margin-top:12px;gap:8px">
-  <div class="seg auto" id="type-seg"><button data-v="income" class="on">+ Доход</button><button data-v="save">⇢ Отложить</button><button data-v="out">− Снять</button></div>
-  <div class="seg auto" id="cur-seg"><button data-v="USD" class="on">$</button><button data-v="AMD">֏</button></div>
- </div>
- <form id="form" autocomplete="off">
-  <div class="row"><label>Сумма<input id="amount" class="amount" inputmode="decimal" placeholder="0" required></label>
-   <label id="saved-field">Из них отложил<input id="saved" class="amount" inputmode="decimal" placeholder="0"></label></div>
-  <div id="out-fields" hidden>
-   <label>Откуда снимаю</label><div class="seg" id="from-seg" style="margin-top:6px"><button type="button" data-v="income" class="on">Из дохода</button><button type="button" data-v="savings">Из отложений</button></div>
-   <label>Категория<select id="category"></select></label>
+ <!-- ГЛАВНАЯ -->
+ <section id="tab-home">
+  <div class="grid2">
+   <div class="card"><small>ДОЛЛАРЫ</small><div class="big num" id="usd-total">—</div>
+    <div class="kv"><span>Свободно</span><b class="num" id="usd-free">—</b></div><div class="kv"><span>Отложено</span><b class="num sv" id="usd-saved">—</b></div></div>
+   <div class="card"><small>ДРАМЫ</small><div class="big num" id="amd-total">—</div>
+    <div class="kv"><span>Свободно</span><b class="num" id="amd-free">—</b></div><div class="kv"><span>Отложено</span><b class="num sv" id="amd-saved">—</b></div></div>
   </div>
-  <div class="row"><label>Дата<input id="date" type="date" required></label><label>Комментарий<input id="note" maxlength="300" placeholder="Необязательно"></label></div>
-  <div id="hint" class="muted"></div>
-  <div class="row" style="margin-top:10px"><button id="submit" class="primary" type="submit" disabled>Записать</button></div>
-  <div id="notice" role="status"></div>
- </form>
-</section>
+  <div class="card"><div class="kv" style="border:0;padding-top:0"><span class="muted">Всего по моему курсу</span><b class="num" id="all-total">—</b></div>
+   <div class="kv"><span class="muted">Из них отложено</span><b class="num sv" id="all-saved">—</b></div></div>
+  <div class="actions"><button data-new="income" class="a-in"><b>+</b>Доход</button><button data-new="save" class="a-sv"><b>⇢</b>Отложить</button><button data-new="out" class="a-out"><b>−</b>Снять</button></div>
+  <div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Этот месяц</h2><button class="ghost" data-go="stats">Анализ →</button></div>
+   <div id="home-month"></div></div>
+  <div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Последние записи</h2><button class="ghost" data-go="hist">Все →</button></div>
+   <ul class="list" id="recent"></ul></div>
+ </section>
 
-<section class="card">
- <div class="row" style="align-items:flex-end"><label>Мой курс: ֏ за 1 $<input id="rate" inputmode="decimal" placeholder="напр. 385"></label><button id="rate-save" class="auto">Сохранить</button><button id="rates-refresh" class="auto ghost" title="Обновить курсы rate.am">↻ rate.am</button></div>
- <div class="rates" id="rates"><div class="rate-box muted">Загружаю курсы rate.am…</div></div>
- <small id="rates-note"></small>
-</section>
+ <!-- АНАЛИЗ -->
+ <section id="tab-stats" hidden>
+  <h1>Анализ</h1>
+  <div class="seg full" id="per-seg"><button data-v="week">Неделя</button><button data-v="month" class="on">Месяц</button><button data-v="year">Год</button><button data-v="all">Всё</button></div>
+  <div class="period"><button class="ghost" id="p-prev">‹</button><b id="p-title"></b><button class="ghost" id="p-next">›</button></div>
+  <div class="seg full" id="view-seg"><button data-v="USD">$</button><button data-v="AMD">֏</button><button data-v="toUSD" class="on">Всё в $</button><button data-v="toAMD">Всё в ֏</button></div>
+  <div class="tiles" style="margin-top:12px" id="tiles"></div>
+  <div class="card"><h2>Как приходят и уходят</h2><div class="chart" id="flow"></div>
+   <div class="legend"><span><i class="sw" style="background:var(--in)"></i> Пришло</span><span><i class="sw" style="background:var(--out)"></i> Ушло</span></div></div>
+  <div class="card"><h2>Куда уходят</h2><div class="bars" id="where-out"></div></div>
+  <div class="card"><h2>Откуда приходят</h2><div class="bars" id="where-in"></div></div>
+  <div class="card"><h2>Самые крупные траты</h2><ul class="list" id="top-out"></ul></div>
+ </section>
 
-<section class="card">
- <div class="month-head"><button id="m-prev" class="ghost">‹</button><h2 id="m-title"></h2><button id="m-next" class="ghost">›</button></div>
- <div id="m-stats"></div><div class="bars" id="m-bars"></div>
-</section>
+ <!-- ИСТОРИЯ -->
+ <section id="tab-hist" hidden>
+  <h1>История</h1>
+  <input id="search" type="search" placeholder="Поиск по комментарию, категории, сумме" autocomplete="off">
+  <div class="row" style="margin-top:10px;gap:8px">
+   <div class="seg" id="ht-seg"><button data-v="all" class="on">Все</button><button data-v="income">Доход</button><button data-v="save">Отложил</button><button data-v="out">Снял</button></div>
+   <div class="seg" id="hc-seg"><button data-v="all" class="on">$ ֏</button><button data-v="USD">$</button><button data-v="AMD">֏</button></div>
+  </div>
+  <div id="filters" style="margin-top:10px"></div>
+  <div id="hist"></div>
+  <button id="more" class="ghost" style="width:100%" hidden>Показать ещё</button>
+ </section>
 
-<section class="card" id="goal-card"><h2>Общая цель с Tate</h2><div class="total"><strong id="goal-text">—</strong><span class="muted" id="goal-left"></span></div>
- <progress id="goal-bar" max="100" value="0"></progress><small id="goal-mine"></small></section>
+ <!-- ЕЩЁ -->
+ <section id="tab-more" hidden>
+  <h1>Настройки</h1>
+  <div class="card"><h2>Курс</h2>
+   <div class="row"><label class="grow" style="margin:0">Мой курс: ֏ за 1 $<input id="rate" inputmode="decimal" placeholder="напр. 385"></label><button id="rate-save" style="align-self:flex-end">Сохранить</button></div>
+   <div id="rates"></div><small id="rates-note"></small> <button class="ghost" id="rates-refresh">↻ обновить rate.am</button></div>
+  <div class="card"><h2>Категории расходов</h2><div class="chips" id="cats-out"></div>
+   <form class="row" data-kind="out" style="margin-top:10px"><input class="grow" maxlength="40" placeholder="Новая категория"><button>Добавить</button></form></div>
+  <div class="card"><h2>Источники дохода</h2><div class="chips" id="cats-in"></div>
+   <form class="row" data-kind="income" style="margin-top:10px"><input class="grow" maxlength="40" placeholder="Новый источник"><button>Добавить</button></form></div>
+  <div class="card" id="goal-card"><h2>Общая цель с Tate</h2><div class="kv" style="border:0"><b class="num" id="goal-text">—</b><span class="muted num" id="goal-left"></span></div>
+   <progress id="goal-bar" max="100" value="0"></progress><small id="goal-mine"></small></div>
+  <div class="card"><a id="sheet-link" target="_blank" rel="noopener" style="color:var(--gold)">Открыть таблицу ↗</a>
+   <p class="muted" style="font-size:13px;margin:10px 0 0">Каждая запись идёт во «Ввод» в долларах (драмы — по курсу на момент записи, в комментарии исходная сумма в ֏). «Снял из дохода» в таблицу не идёт. Полный журнал — лист «Alld · Хасл».</p>
+   <button class="ghost" id="logout" style="margin-top:8px;padding-left:0">Выйти на этом устройстве</button></div>
+ </section>
+</div>
 
-<section class="card">
- <div class="row" style="align-items:center"><h2 style="margin:0">История</h2><div class="seg auto" id="hist-seg"><button data-v="all" class="on">Все</button><button data-v="USD">$</button><button data-v="AMD">֏</button></div></div>
- <ul class="hist" id="history"></ul><button id="more" class="ghost" hidden>Показать ещё</button>
-</section>
+<nav class="tabbar"><div>
+ <button data-go="home" class="on"><i>⌂</i>Главная</button><button data-go="stats"><i>◔</i>Анализ</button>
+ <button class="plus" data-new="income" aria-label="Новая запись"><i>+</i></button>
+ <button data-go="hist"><i>☰</i>История</button><button data-go="more"><i>⚙</i>Ещё</button></div></nav>
 
-<section class="card"><h2>Категории расходов</h2><div class="chips" id="chips"></div>
- <form id="cat-form" class="row"><input id="cat-new" maxlength="40" placeholder="Новая категория"><button class="auto">Добавить</button></form></section>
+<div id="sheet" class="sheet" hidden><div class="sheet-bg" id="sheet-bg"></div>
+ <form class="sheet-body" id="form" autocomplete="off"><div class="grab"></div>
+  <div class="row" style="justify-content:space-between"><h2 id="form-title" style="margin:0">Новая запись</h2><button type="button" class="ghost" id="sheet-close">✕</button></div>
+  <div class="seg full" id="type-seg" style="margin-top:10px"><button data-v="income">+ Доход</button><button data-v="save">⇢ Отложить</button><button data-v="out">− Снять</button></div>
+  <div class="row" style="margin-top:12px;gap:8px"><input id="amount" class="amount grow" inputmode="decimal" placeholder="0" required style="margin:0">
+   <div class="seg" id="cur-seg" style="align-self:stretch"><button data-v="USD">$</button><button data-v="AMD">֏</button></div></div>
+  <div id="hint"></div>
+  <label id="saved-field">Из них отложил<input id="saved" inputmode="decimal" placeholder="0"></label>
+  <div id="from-field"><label>Откуда снимаю</label><div class="seg full" id="from-seg" style="margin-top:6px"><button data-v="income">Из дохода</button><button data-v="savings">Из отложений</button></div></div>
+  <div id="cat-field"><label id="cat-label">Категория</label><div class="chips" id="cat-chips"></div></div>
+  <label>Комментарий<textarea id="note" maxlength="300" placeholder="На что, от кого, за что — что угодно"></textarea></label>
+  <label>Дата<input id="date" type="date" required></label>
+  <button id="submit" class="primary" type="submit" style="width:100%;margin-top:14px;padding:14px">Записать</button>
+  <button id="delete" class="danger" type="button" style="width:100%;margin-top:8px" hidden>Удалить запись</button>
+ </form></div>
+<div id="notice" role="status" hidden></div>
+<div id="tip" class="tip" hidden></div>
 
-<footer><span>Доллары Alld пишутся в лист «Ввод». Драмы и расходы — в лист «Alld · Хасл».</span><a id="sheet" target="_blank" rel="noopener">Открыть таблицу ↗</a></footer>
-</main>
 <script>
 'use strict';
 const $=id=>document.getElementById(id);
-const S={state:null,busy:false,type:'income',cur:'USD',from:'income',edit:null,pending:null,month:new Date(),hist:'all',limit:40,rates:null};
-const today=()=>new Date().toLocaleDateString('sv-SE');
-const SYM={USD:'$',AMD:'֏'};
-function fmt(v,cur){const d=cur==='USD'?2:0;return new Intl.NumberFormat('ru-RU',{minimumFractionDigits:cur==='USD'&&v%1?2:0,maximumFractionDigits:d}).format(v)+' '+SYM[cur]}
-function parse(v,zero){const t=String(v).replace(/\s/g,'').replace(',','.');if(!t&&zero)return 0;if(!/^\d+(\.\d{1,2})?$/.test(t))throw Error('Введи сумму, например 12,50');const n=Math.round(Number(t)*100)/100;if(!zero&&!(n>0))throw Error('Сумма должна быть больше нуля');return n}
 const API='https://script.google.com/macros/s/AKfycbwCmwsRq_MAvaSUv4S3te8_5bCdTCkoZhKlBqG9LkiSpAbPcpbPepMUq74N7hUWzkt2/exec';
+const SYM={USD:'$',AMD:'֏'};
+const S={state:null,busy:false,offline:false,tab:'home',per:'month',anchor:new Date(),view:'toUSD',
+ form:{type:'income',cur:'USD',from:'income',cat:''},edit:null,
+ hist:{type:'all',cur:'all',q:'',cat:null,limit:60},rates:null};
+const today=()=>new Date().toLocaleDateString('sv-SE');
+const r2=v=>Math.round(v*100)/100;
+function fmt(v,cur){return new Intl.NumberFormat('ru-RU',{minimumFractionDigits:cur==='USD'&&Math.abs(v)%1?2:0,maximumFractionDigits:cur==='USD'?2:0}).format(v)+' '+SYM[cur]}
+function parse(v,zero){const t=String(v).replace(/\s/g,'').replace(',','.');if(!t&&zero)return 0;if(!/^\d+(\.\d{1,2})?$/.test(t))throw Error('Введи сумму, например 12,50');const n=r2(Number(t));if(!zero&&!(n>0))throw Error('Сумма должна быть больше нуля');return n}
+function el(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=text;return n}
+function seg(id,value,onPick){$(id).querySelectorAll('button').forEach(b=>{b.type='button';b.classList.toggle('on',b.dataset.v===value);b.onclick=()=>onPick(b.dataset.v)})}
+let noteTimer;function note(msg,err){const n=$('notice');n.textContent=msg;n.classList.toggle('err',!!err);n.hidden=!msg;clearTimeout(noteTimer);if(msg)noteTimer=setTimeout(()=>n.hidden=true,err?6000:3200)}
+const dmy=d=>{const [y,m,dd]=d.split('-');return dd+'.'+m+'.'+y.slice(2)};
+
+// ---------- связь с таблицей + офлайн ----------
 let KEY='';try{KEY=localStorage.getItem('hustle-key')||''}catch{}
 const offlineErr=msg=>{const e=Error(msg);e.offline=true;return e};
 async function rpc(name,...args){
@@ -135,14 +221,15 @@ async function rpc(name,...args){
  S.offline=false;
  if(!out.ok){const e=Error(out.error);if(out.error==='Неверный ключ'){e.auth=true;showLogin('Неверный ключ')}throw e}
  return out.data}
-// --- офлайн: последнее состояние с сервера + очередь неотправленных действий ---
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
 let BASE=LS.get('hustle-state',null),OUTBOX=LS.get('hustle-outbox',[]),flushing=false;
 function applyOp(st,op){const a=op.args[0];st={...st,entries:st.entries.slice()};
- if(op.fn==='addEntry'){if(!st.entries.some(e=>e.id===a.id))st.entries.push({...a,saved:a.saved||0,src:'site'})}
- else if(op.fn==='updateEntry')st.entries=st.entries.map(e=>e.id===a.id?{...a,saved:a.saved||0,src:'site'}:e);
+ const norm=x=>({...x,saved:x.saved||0,src:'site'});
+ if(op.fn==='addEntry'){if(!st.entries.some(e=>e.id===a.id))st.entries.push(norm(a))}
+ else if(op.fn==='updateEntry')st.entries=st.entries.map(e=>e.id===a.id?norm(a):e);
  else if(op.fn==='deleteEntry')st.entries=st.entries.filter(e=>e.id!==a);
- else if(op.fn==='setRate')st.rate=a;else if(op.fn==='setCategories')st.categories=a;
+ else if(op.fn==='setRate')st.rate=a;
+ else if(op.fn==='setCategories')st[op.args[1]==='income'?'incomeCategories':'categories']=a;
  return st}
 function show(){S.state=BASE?OUTBOX.reduce(applyOp,BASE):null;if(S.state)render()}
 function setBase(st){BASE=st;LS.set('hustle-state',st)}
@@ -151,122 +238,206 @@ async function flush(){if(flushing||!KEY)return;flushing=true;try{
   try{setBase(await rpc(op.fn,...op.args))}catch(err){if(err.offline||err.auth)break;if(!(op.fn==='deleteEntry'&&/не найдена/.test(err.message)))note('Не сохранилось в таблицу: '+err.message,true)}
   OUTBOX.shift();LS.set('hustle-outbox',OUTBOX)}
  }finally{flushing=false;show()}}
+function call(fn,...args){if(!S.state)return false;OUTBOX.push({fn,args});LS.set('hustle-outbox',OUTBOX);show();flush();return true}
+async function refresh(){if(S.busy||flushing||!KEY)return;if(OUTBOX.length)return flush();S.busy=true;try{setBase(await rpc('getState'));show()}catch(err){if(!err.offline&&!err.auth)note('Не удалось обновить: '+err.message,true);if(S.state)$('status').textContent=statusText()}finally{S.busy=false}}
+function statusText(){const t=BASE?new Date(BASE.updated).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}):'';
+ if(OUTBOX.length)return '⏳ ждут сети: '+OUTBOX.length;return S.offline?'офлайн · '+t:'✓ '+t}
 function showLogin(msg){$('login').hidden=false;$('login-msg').textContent=msg||'';setTimeout(()=>$('key').focus(),50)}
 $('login-form').onsubmit=async ev=>{ev.preventDefault();KEY=$('key').value.trim();$('login-msg').textContent='Проверяю…';
  try{setBase(await rpc('getState'));try{localStorage.setItem('hustle-key',KEY)}catch{}$('login').hidden=true;$('key').value='';show();loadRates(false);flush()}catch(err){$('login-msg').textContent=err.message}};
-function el(tag,cls,text){const n=document.createElement(tag);if(cls)n.className=cls;if(text!=null)n.textContent=text;return n}
-function seg(id,value,onPick){const box=$(id);box.querySelectorAll('button').forEach(b=>{b.type='button';b.classList.toggle('on',b.dataset.v===value);b.onclick=()=>onPick(b.dataset.v)})}
-function note(msg,err){$('notice').textContent=msg||'';$('notice').classList.toggle('err',!!err)}
+$('logout').onclick=()=>{if(OUTBOX.length&&!confirm('Есть неотправленные записи ('+OUTBOX.length+'). Всё равно выйти?'))return;if(!confirm('Выйти на этом устройстве?'))return;try{['hustle-key','hustle-state','hustle-outbox','hustle-rates'].forEach(k=>localStorage.removeItem(k))}catch{}location.reload()};
 
+// ---------- расчёты ----------
 function wallets(entries){
  const w={USD:{income:0,toSave:0,outIncome:0,outSavings:0},AMD:{income:0,toSave:0,outIncome:0,outSavings:0}};
  for(const e of entries){const x=w[e.cur];if(e.type==='income'){x.income+=e.amount;x.toSave+=e.saved}else if(e.type==='save')x.toSave+=e.amount;else if(e.from==='savings')x.outSavings+=e.amount;else x.outIncome+=e.amount}
- for(const c in w){const x=w[c];x.free=Math.round((x.income-x.toSave-x.outIncome)*100)/100;x.saved=Math.round((x.toSave-x.outSavings)*100)/100;x.total=Math.round((x.free+x.saved)*100)/100}
- return w;
-}
-function controls(){for(const id of ['submit','rate-save'])$(id).disabled=!S.state;$('refresh').disabled=S.busy}
-function statusText(){const t=BASE?new Date(BASE.updated).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}):'';
- if(OUTBOX.length)return '⏳ ждут сети: '+OUTBOX.length;return S.offline?'офлайн · данные от '+t:'✓ '+t}
+ for(const c in w){const x=w[c];x.free=r2(x.income-x.toSave-x.outIncome);x.saved=r2(x.toSave-x.outSavings);x.total=r2(x.free+x.saved)}
+ return w}
+// значение записи в выбранном виде (null — запись не участвует)
+function val(e,v,view){view=view||S.view;const rate=S.state.rate;
+ if(view==='USD')return e.cur==='USD'?v:null; if(view==='AMD')return e.cur==='AMD'?v:null;
+ if(view==='toUSD')return e.cur==='USD'?v:((e.rate||rate)>0?v/(e.rate||rate):null);
+ return e.cur==='AMD'?v:(rate>0?v*rate:null)}
+const viewCur=()=>S.view==='USD'||S.view==='toUSD'?'USD':'AMD';
+function flows(list){const t={inc:0,out:0,sv:0};for(const e of list){
+ if(e.type==='income'){t.inc+=val(e,e.amount)||0;t.sv+=val(e,e.saved)||0}
+ else if(e.type==='save')t.sv+=val(e,e.amount)||0;
+ else{t.out+=val(e,e.amount)||0;if(e.from==='savings')t.sv-=val(e,e.amount)||0}}
+ t.net=t.inc-t.out;return t}
+function periodRange(per,anchor,shift){const a=new Date(anchor);
+ if(per==='week'){const d=new Date(a.getFullYear(),a.getMonth(),a.getDate()-((a.getDay()+6)%7)+7*(shift||0));const e=new Date(d.getFullYear(),d.getMonth(),d.getDate()+6);return{from:d,to:e}}
+ if(per==='month'){const d=new Date(a.getFullYear(),a.getMonth()+(shift||0),1);return{from:d,to:new Date(d.getFullYear(),d.getMonth()+1,0)}}
+ if(per==='year'){const y=a.getFullYear()+(shift||0);return{from:new Date(y,0,1),to:new Date(y,11,31)}}
+ const ds=S.state.entries.map(e=>e.date).sort();return{from:ds.length?new Date(ds[0]+'T12:00'):new Date(),to:new Date()}}
+const key=d=>d.toLocaleDateString('sv-SE');
+const inRange=(e,r)=>e.date>=key(r.from)&&e.date<=key(r.to);
 
-function render(){
- const st=S.state;if(!st)return;const w=wallets(st.entries),r=st.rate;
- $('usd-total').textContent=fmt(w.USD.total,'USD');$('usd-free').textContent=fmt(w.USD.free,'USD');$('usd-saved').textContent=fmt(w.USD.saved,'USD');
- $('amd-total').textContent=fmt(w.AMD.total,'AMD');$('amd-free').textContent=fmt(w.AMD.free,'AMD');$('amd-saved').textContent=fmt(w.AMD.saved,'AMD');
- if(r>0){$('all-amd').textContent=fmt(w.AMD.total+w.USD.total*r,'AMD');$('all-usd').textContent='≈ '+fmt(w.USD.total+w.AMD.total/r,'USD');
-  $('all-saved-amd').textContent=fmt(w.AMD.saved+w.USD.saved*r,'AMD');$('all-saved-usd').textContent='≈ '+fmt(w.USD.saved+w.AMD.saved/r,'USD')}
- else{$('all-amd').textContent='Поставь свой курс ниже';$('all-usd').textContent='';$('all-saved-amd').textContent='—';$('all-saved-usd').textContent=''}
- if(document.activeElement!==$('rate'))$('rate').value=r>0?String(r).replace('.',','):'';
- const sel=$('category'),keep=sel.value;sel.replaceChildren(...st.categories.map(c=>el('option',null,c)));if(st.categories.includes(keep))sel.value=keep;
- $('chips').replaceChildren(...st.categories.map(c=>{const ch=el('span','chip',c),x=el('button',null,'×');x.type='button';x.title='Удалить';x.onclick=()=>saveCats(st.categories.filter(y=>y!==c));ch.append(x);return ch}));
- const g=st.shared;if(g.goal>0){$('goal-text').textContent=fmt(g.saved,'USD')+' из '+fmt(g.goal,'USD');$('goal-left').textContent='осталось '+fmt(Math.max(g.goal-g.saved,0),'USD');$('goal-bar').value=Math.min(100,g.saved/g.goal*100);$('goal-mine').textContent='Твой вклад: '+fmt(w.USD.saved,'USD')+' · '+(g.saved>0?Math.round(w.USD.saved/g.saved*100):0)+'% от общего'}else $('goal-card').hidden=true;
- $('sheet').href=st.url;$('status').textContent=statusText();
- renderMonth();renderHistory();hint();controls();
-}
-
-function renderMonth(){
- const m=S.month,key=m.getFullYear()+'-'+String(m.getMonth()+1).padStart(2,'0');
- $('m-title').textContent=m.toLocaleDateString('ru-RU',{month:'long',year:'numeric'});
- const list=S.state.entries.filter(e=>e.date.startsWith(key));
- const stats=$('m-stats');stats.replaceChildren();const bars=$('m-bars');bars.replaceChildren();
- if(!list.length){stats.append(el('small',null,'В этом месяце записей нет'));return}
- for(const cur of ['USD','AMD']){const L=list.filter(e=>e.cur===cur);if(!L.length)continue;
-  const inc=L.filter(e=>e.type==='income').reduce((s,e)=>s+e.amount,0),sv=L.reduce((s,e)=>s+(e.type==='income'?e.saved:e.type==='save'?e.amount:0),0),outs=L.filter(e=>e.type==='out'),sp=outs.reduce((s,e)=>s+e.amount,0);
-  for(const [k,v,c] of [['Доход',inc,'in'],['Отложил',sv,'sv'],['Снял / потратил',sp,'out']]){const kv=el('div','kv');kv.append(el('span',null,k+' · '+SYM[cur]),el('b',c,fmt(v,cur)));stats.append(kv)}
-  if(outs.length){const by={};outs.forEach(e=>{const c=e.category||'Без категории';by[c]=(by[c]||0)+e.amount});const max=Math.max(...Object.values(by));
-   bars.append(el('small',null,'Расходы по категориям · '+SYM[cur]));
-   Object.entries(by).sort((a,b)=>b[1]-a[1]).forEach(([c,v])=>{const b=el('div','bar'),t=el('div','t');t.append(el('span',null,c),el('span',null,fmt(v,cur)+' · '+Math.round(v/sp*100)+'%'));const tr=el('div','track'),f=el('div','fill');f.style.width=(v/max*100)+'%';tr.append(f);b.append(t,tr);bars.append(b)})}
- }
-}
-
+// ---------- отрисовка ----------
+function render(){if(!S.state)return;$('status').textContent=statusText();renderHome();if(S.tab==='stats')renderStats();if(S.tab==='hist')renderHist();if(S.tab==='more')renderMore();if(!$('sheet').hidden)hint()}
 function describe(e){
- if(e.type==='income')return{t:'Доход',c:'in',s:'+',sub:(e.saved?'отложил '+fmt(e.saved,e.cur):'')};
- if(e.type==='save')return{t:'Отложил',c:'sv',s:'⇢ ',sub:''};
- return{t:'Снял '+(e.from==='savings'?'из отложений':'из дохода'),c:'out',s:'−',sub:e.category};
-}
-function renderHistory(){
- const ul=$('history');ul.replaceChildren();
- const list=S.state.entries.filter(e=>S.hist==='all'||e.cur===S.hist).sort((a,b)=>b.date.localeCompare(a.date)||(a.src===b.src?0:a.src==='site'?-1:1));
- if(!list.length){ul.append(el('li','muted','Пока нет записей'));$('more').hidden=true;return}
- for(const e of list.slice(0,S.limit)){const d=describe(e),li=el('li');
-  const [y,m,dd]=e.date.split('-');li.append(el('span','d',dd+'.'+m+'.'+y.slice(2)));
-  const what=el('div','what');const title=el('span',null,d.t);if(e.src==='table')title.append(el('span','tag','из таблицы'));what.append(title);const sub=[d.sub,e.note].filter(Boolean).join(' · ');if(sub)what.append(el('small','muted',sub));li.append(what);
-  li.append(el('span','sum '+d.c,d.s+fmt(e.amount,e.cur)));
-  const act=el('span','act');if(e.src==='site'){const ed=el('button','ghost','✎'),rm=el('button','ghost','✕');ed.title='Изменить';rm.title='Удалить';ed.onclick=()=>startEdit(e);rm.onclick=()=>remove(e);act.append(ed,rm)}else{act.append(el('small','muted','правится в таблице'))}
-  li.append(act);ul.append(li)}
- $('more').hidden=list.length<=S.limit;
-}
+ if(e.type==='income')return{t:e.category||'Доход',c:'in',s:'+',i:'+'};
+ if(e.type==='save')return{t:'Отложил',c:'sv',s:'',i:'⇢'};
+ return{t:e.category||'Снял',c:'out',s:'−',i:'−'}}
+function entryRow(e,withDate){const d=describe(e),li=el('li');li.onclick=()=>openSheet(e.type,e);
+ li.append(el('span','dot '+d.c,d.i));const w=el('div','what');const t=el('b',null,d.t);if(e.src==='table')t.append(el('span','tag','из таблицы'));w.append(t);
+ const sub=[withDate?dmy(e.date):'',e.type==='income'&&e.saved?'отложил '+fmt(e.saved,e.cur):'',e.type==='out'?(e.from==='savings'?'из отложений':'из дохода'):''].filter(Boolean).join(' · ');
+ if(sub)w.append(el('span','sub',sub));if(e.note)w.append(el('span','cmt','💬 '+e.note));li.append(w);
+ const a=el('span','amt num',d.s+fmt(e.amount,e.cur));if(e.cur==='AMD'&&(e.rate||S.state.rate)>0)a.append(el('small','muted','≈ '+fmt(e.amount/(e.rate||S.state.rate),'USD')));li.append(a);return li}
+const sorted=()=>S.state.entries.slice().sort((a,b)=>b.date.localeCompare(a.date)||(a.src===b.src?0:a.src==='site'?-1:1));
 
-function setType(t){S.type=t;seg('type-seg',t,setType);$('saved-field').hidden=t!=='income';$('out-fields').hidden=t!=='out';$('submit').textContent=S.edit?'Сохранить изменения':t==='income'?'Записать доход':t==='save'?'Отложить':'Записать снятие';hint()}
-function setCur(c){S.cur=c;seg('cur-seg',c,setCur);hint()}
-function setFrom(f){S.from=f;seg('from-seg',f,setFrom);hint()}
-function hint(){
- const st=S.state;if(!st){$('hint').textContent='';return}const w=wallets(st.entries.filter(e=>!S.edit||e.id!==S.edit.id))[S.cur],r=st.rate,parts=[];
- let a=0;try{a=parse($('amount').value,true)}catch{}
- if(a&&r>0)parts.push('≈ '+(S.cur==='USD'?fmt(a*r,'AMD'):fmt(a/r,'USD')));
- if(S.type==='out')parts.push('доступно '+(S.from==='savings'?'в отложениях ':'из дохода ')+fmt(S.from==='savings'?w.saved:w.free,S.cur));
- if(S.type==='save')parts.push('свободно '+fmt(w.free,S.cur));
- if(S.cur==='USD'&&(S.type!=='out'||S.from==='savings'))parts.push('пойдёт и во «Ввод»');
- $('hint').textContent=parts.join(' · ');
-}
-function resetForm(){S.edit=null;S.pending=null;$('form-card').classList.remove('editing');$('form-title').textContent='Новая запись';$('cancel-edit').hidden=true;$('amount').value='';$('saved').value='';$('note').value='';$('date').value=today();setType(S.type)}
-function startEdit(e){S.edit=e;S.pending=null;$('form-card').classList.add('editing');$('form-title').textContent='Изменить запись';$('cancel-edit').hidden=false;
- setCur(e.cur);setFrom(e.from||'income');$('amount').value=String(e.amount).replace('.',',');$('saved').value=e.saved?String(e.saved).replace('.',','):'';$('date').value=e.date;$('note').value=e.note;if(e.category&&!S.state.categories.includes(e.category))$('category').append(el('option',null,e.category));$('category').value=e.category||S.state.categories[0];setType(e.type);note('');$('form-card').scrollIntoView({behavior:'smooth',block:'start'})}
-$('cancel-edit').onclick=()=>{resetForm();note('')};
+function renderHome(){const st=S.state,w=wallets(st.entries),r=st.rate;
+ for(const c of ['USD','AMD']){const k=c.toLowerCase();$(k+'-total').textContent=fmt(w[c].total,c);$(k+'-free').textContent=fmt(w[c].free,c);$(k+'-saved').textContent=fmt(w[c].saved,c)}
+ if(r>0){$('all-total').textContent=fmt(w.AMD.total+w.USD.total*r,'AMD')+' ≈ '+fmt(w.USD.total+w.AMD.total/r,'USD');$('all-saved').textContent=fmt(w.AMD.saved+w.USD.saved*r,'AMD')+' ≈ '+fmt(w.USD.saved+w.AMD.saved/r,'USD')}
+ else{$('all-total').textContent='поставь курс в «Ещё»';$('all-saved').textContent='—'}
+ const m=periodRange('month',new Date()),list=st.entries.filter(e=>inRange(e,m)),box=$('home-month');box.replaceChildren();
+ const cur=r>0?'USD':null;
+ for(const c of cur?['toUSD']:['USD','AMD']){const f=flowsFor(list,c),vc=c==='AMD'?'AMD':'USD';
+  for(const [k,v,cls] of [['Пришло',f.inc,''],['Ушло',f.out,''],['Отложил',f.sv,'sv']]){const kv=el('div','kv');kv.append(el('span',null,k+(cur?'':' · '+SYM[vc])),el('b','num '+cls,fmt(v,vc)));box.append(kv)}}
+ if(cur)box.append(el('small','faint','драмы пересчитаны в $ по курсу записи'));
+ const ul=$('recent');ul.replaceChildren();const rec=sorted().slice(0,6);if(!rec.length)ul.append(el('li','empty','Пока нет записей'));rec.forEach(e=>ul.append(entryRow(e,true)))}
+function flowsFor(list,view){const keep=S.view;S.view=view;const f=flows(list);S.view=keep;return f}
 
-async function call(fn,...args){if(!S.state)return false;OUTBOX.push({fn,args});LS.set('hustle-outbox',OUTBOX);show();flush();return true}
-$('form').onsubmit=async ev=>{ev.preventDefault();if(S.busy||!S.state)return;
- let draft;try{draft={type:S.type,cur:S.cur,date:$('date').value,amount:parse($('amount').value),saved:S.type==='income'?parse($('saved').value,true):0,from:S.type==='out'?S.from:'',category:S.type==='out'?$('category').value:'',note:$('note').value.trim()};
-  if(draft.saved>draft.amount)throw Error('Нельзя отложить больше дохода');if(!/^\d{4}-\d{2}-\d{2}$/.test(draft.date))throw Error('Выбери дату')}catch(err){note(err.message,true);return}
- const w=wallets(S.state.entries.filter(e=>!S.edit||e.id!==S.edit.id))[draft.cur];
- if(draft.type==='out'){const have=draft.from==='savings'?w.saved:w.free;if(draft.amount>have&&!confirm('Там только '+fmt(have,draft.cur)+'. Всё равно записать?'))return}
- if(draft.type==='save'&&draft.amount>w.free&&!confirm('Свободно только '+fmt(w.free,draft.cur)+'. Всё равно отложить?'))return;
- let ok;if(S.edit){ok=await call('updateEntry',{...draft,id:S.edit.id})}else{const fp=JSON.stringify(draft);if(!S.pending||S.pending.fp!==fp)S.pending={fp,id:crypto.randomUUID()};ok=await call('addEntry',{...draft,id:S.pending.id})}
- if(ok){const was=S.edit;resetForm();note((was?'Изменено.':'Записано: '+describe(draft).t.toLowerCase()+' '+fmt(draft.amount,draft.cur)+'.')+(S.offline?' В таблицу отправлю, когда появится интернет.':''));$('amount').focus()}
-};
-async function remove(e){if(!confirm('Удалить запись «'+describe(e).t+' '+fmt(e.amount,e.cur)+'» от '+e.date.split('-').reverse().join('.')+'?'+(e.cur==='USD'&&(e.type!=='out'||e.from==='savings')?'\nСтрока во «Ввод» тоже очистится.':'')))return;if(await call('deleteEntry',e.id)){if(S.edit&&S.edit.id===e.id)resetForm();note('Удалено.')}}
-$('rate-save').onclick=async()=>{let r;try{r=parse($('rate').value)}catch(err){note(err.message,true);return}if(await call('setRate',r))note('Курс сохранён: '+fmt(r,'AMD')+' за 1 $')};
-async function saveCats(list){if(await call('setCategories',list))$('cat-new').value=''}
-$('cat-form').onsubmit=ev=>{ev.preventDefault();const v=$('cat-new').value.trim();if(v&&S.state)saveCats([...S.state.categories,v])};
-$('amount').oninput=hint;
-$('m-prev').onclick=()=>{S.month=new Date(S.month.getFullYear(),S.month.getMonth()-1,1);renderMonth()};
-$('m-next').onclick=()=>{S.month=new Date(S.month.getFullYear(),S.month.getMonth()+1,1);renderMonth()};
-seg('hist-seg','all',function pick(v){S.hist=v;S.limit=40;seg('hist-seg',v,pick);renderHistory()});
-$('more').onclick=()=>{S.limit+=40;renderHistory()};
+// ---------- анализ ----------
+function renderStats(){const st=S.state,cur=viewCur(),r=periodRange(S.per,S.anchor),prev=S.per==='all'?null:periodRange(S.per,S.anchor,-1);
+ const title=S.per==='week'?key(r.from).slice(8)+'.'+key(r.from).slice(5,7)+' – '+key(r.to).slice(8)+'.'+key(r.to).slice(5,7):S.per==='month'?r.from.toLocaleDateString('ru-RU',{month:'long',year:'numeric'}):S.per==='year'?String(r.from.getFullYear()):'За всё время';
+ $('p-title').textContent=title;$('p-prev').disabled=S.per==='all';$('p-next').disabled=S.per==='all';
+ const needRate=(S.view==='toUSD'||S.view==='toAMD')&&!(st.rate>0);
+ const list=st.entries.filter(e=>inRange(e,r)),f=flows(list),pf=prev?flows(st.entries.filter(e=>inRange(e,prev))):null;
+ const days=Math.max(1,Math.round((Math.min(r.to,new Date())-r.from)/864e5)+1);
+ const tiles=$('tiles');tiles.replaceChildren();
+ const tile=(label,sw,v,pv,extra)=>{const t=el('div','tile');const s=el('small');if(sw){const i=el('i','sw');i.style.background=sw;s.append(i)}s.append(label);t.append(s,el('strong','num',fmt(v,cur)));
+  let d=extra||'';if(pf&&pv!=null){if(pv===0&&v===0)d=d||'как раньше';else if(pv===0)d=d||'раньше было 0';else{const p=Math.round((v-pv)/Math.abs(pv)*100);d=(p>0?'▲ ':p<0?'▼ ':'')+Math.abs(p)+'% к прошлому'+(extra?' · '+extra:'')}}
+  t.append(el('div','d',d));tiles.append(t)};
+ tile('Пришло','var(--in)',f.inc,pf&&pf.inc,'в среднем '+fmt(f.inc/days,cur)+'/день');
+ tile('Ушло','var(--out)',f.out,pf&&pf.out,'в среднем '+fmt(f.out/days,cur)+'/день');
+ tile('Отложил','var(--gold)',f.sv,pf&&pf.sv,f.inc>0?Math.round(f.sv/f.inc*100)+'% от дохода':'');
+ tile('Итог',null,f.net,pf&&pf.net,f.net>=0?'в плюсе':'в минусе');
+ if(needRate){tiles.append(el('div','tile muted','Для «Всё в» нужен курс — поставь в «Ещё».'))}
+ drawFlow(list,r,cur);
+ bars('where-out',list.filter(e=>e.type==='out'),e=>e.category||'Без категории','var(--out)',cur,'out');
+ bars('where-in',list.filter(e=>e.type==='income'),e=>e.category||(e.note?e.note.slice(0,30):'Без источника'),'var(--in)',cur,'income');
+ const top=$('top-out');top.replaceChildren();const big=list.filter(e=>e.type==='out'&&val(e,e.amount)!=null).sort((a,b)=>val(b,b.amount)-val(a,a.amount)).slice(0,5);
+ if(!big.length)top.append(el('li','empty','Трат за период нет'));big.forEach(e=>top.append(entryRow(e,true)))}
+function bars(id,list,groupOf,color,cur,type){const box=$(id);box.replaceChildren();const by=new Map();let total=0;
+ for(const e of list){const v=val(e,e.amount);if(v==null)continue;const g=groupOf(e);by.set(g,(by.get(g)||0)+v);total+=v}
+ if(!by.size){box.append(el('div','empty',type==='out'?'Трат за период нет':'Доходов за период нет'));return}
+ const rows=[...by].sort((a,b)=>b[1]-a[1]),max=rows[0][1];
+ for(const [g,v] of rows){const b=el('div','b');b.title=g+': '+fmt(v,cur);const t=el('div','t');const n=el('span');n.append(el('b',null,g));t.append(n,el('span',null,fmt(v,cur)+' · '+Math.round(v/total*100)+'%'));
+  const tr=el('div','track'),fi=el('div','fill');fi.style.width=Math.max(2,v/max*100)+'%';fi.style.background=color;tr.append(fi);b.append(t,tr);
+  b.onclick=()=>{S.hist={...S.hist,type:type,cat:g,q:'',limit:60};go('hist')};box.append(b)}}
+function drawFlow(list,r,cur){const box=$('flow');box.replaceChildren();
+ const byMonth=S.per==='year'||S.per==='all';const buckets=[];
+ if(byMonth){let d=new Date(r.from.getFullYear(),r.from.getMonth(),1);const end=new Date(r.to.getFullYear(),r.to.getMonth(),1);
+  while(d<=end){buckets.push({k:key(d).slice(0,7),label:d.toLocaleDateString('ru-RU',{month:'short'}).replace('.',''),full:d.toLocaleDateString('ru-RU',{month:'long',year:'numeric'}),inc:0,out:0});d=new Date(d.getFullYear(),d.getMonth()+1,1)}
+  if(buckets.length>24)buckets.splice(0,buckets.length-24)}
+ else{for(let d=new Date(r.from);d<=r.to;d=new Date(d.getFullYear(),d.getMonth(),d.getDate()+1))buckets.push({k:key(d),label:String(d.getDate()),full:d.toLocaleDateString('ru-RU',{weekday:'short',day:'numeric',month:'long'}),inc:0,out:0})}
+ const idx=new Map(buckets.map((b,i)=>[b.k,i]));
+ for(const e of list){const b=buckets[idx.get(byMonth?e.date.slice(0,7):e.date)];if(!b)continue;const v=val(e,e.amount);if(v==null)continue;if(e.type==='income')b.inc+=v;else if(e.type==='out')b.out+=v}
+ const max=Math.max(1e-9,...buckets.map(b=>Math.max(b.inc,b.out)));
+ if(!buckets.some(b=>b.inc||b.out)){box.append(el('div','empty','За период движения нет'));return}
+ const W=Math.max(280,Math.round(box.clientWidth||640)),H=W<500?170:210,padL=6,padR=6,mid=H/2,n=buckets.length,step=(W-padL-padR)/n,bw=Math.max(3,Math.min(26,step*.62)),h=v=>v/max*(mid-14);
+ const ns='http://www.w3.org/2000/svg',svg=document.createElementNS(ns,'svg');svg.setAttribute('viewBox','0 0 '+W+' '+(H+18));svg.setAttribute('role','img');svg.setAttribute('aria-label','Приход и расход по '+(byMonth?'месяцам':'дням'));
+ const mk=(t,a)=>{const x=document.createElementNS(ns,t);for(const k in a)x.setAttribute(k,a[k]);return x};
+ svg.append(mk('line',{x1:padL,x2:W-padR,y1:mid,y2:mid,stroke:'#4a473e','stroke-width':1}));
+ const rr=(x,y,w,hh,up,c)=>{if(hh<=0)return null;const rad=Math.min(4,w/2,hh);const p=up?`M${x},${y+hh} V${y+rad} Q${x},${y} ${x+rad},${y} H${x+w-rad} Q${x+w},${y} ${x+w},${y+rad} V${y+hh} Z`:`M${x},${y} V${y+hh-rad} Q${x},${y+hh} ${x+rad},${y+hh} H${x+w-rad} Q${x+w},${y+hh} ${x+w},${y+hh-rad} V${y} Z`;return mk('path',{d:p,fill:c})};
+ const every=Math.ceil(n/(W<500?8:12));
+ buckets.forEach((b,i)=>{const x=padL+i*step+(step-bw)/2;const g=mk('g',{});
+  const up=rr(x,mid-1-h(b.inc),bw,h(b.inc),true,'var(--in)'),dn=rr(x,mid+1,bw,h(b.out),false,'var(--out)');if(up)g.append(up);if(dn)g.append(dn);
+  if(i%every===0||i===n-1){const t=mk('text',{x:x+bw/2,y:H+14,'text-anchor':'middle','font-size':11,fill:'#77736a'});t.textContent=b.label;g.append(t)}
+  const hit=mk('rect',{x:padL+i*step,y:0,width:step,height:H,fill:'transparent'});g.append(hit);
+  const tipOn=ev=>{const tp=$('tip');tp.replaceChildren(el('b',null,b.full));const r1=el('div');r1.append(el('span',null,'Пришло'),el('span',null,fmt(b.inc,cur)));const r2_=el('div');r2_.append(el('span',null,'Ушло'),el('span',null,fmt(b.out,cur)));tp.append(r1,r2_);tp.hidden=false;
+   const p=ev.touches?ev.touches[0]:ev;tp.style.left=Math.min(innerWidth-230,p.clientX+12)+'px';tp.style.top=(p.clientY-70)+'px';g.style.opacity=1;svg.querySelectorAll('g').forEach(x=>{if(x!==g)x.style.opacity=.45})};
+  const tipOff=()=>{$('tip').hidden=true;svg.querySelectorAll('g').forEach(x=>x.style.opacity=1)};
+  hit.addEventListener('pointermove',tipOn);hit.addEventListener('pointerdown',tipOn);hit.addEventListener('pointerleave',tipOff);svg.append(g)});
+ svg.addEventListener('pointerleave',()=>{$('tip').hidden=true;svg.querySelectorAll('g').forEach(x=>x.style.opacity=1)});
+ box.append(svg)}
+let rsz;addEventListener('resize',()=>{clearTimeout(rsz);rsz=setTimeout(()=>{if(S.tab==='stats'&&S.state)renderStats()},150)});
+function pickPer(v){S.per=v;S.anchor=new Date();seg('per-seg',v,pickPer);renderStats()}seg('per-seg','month',pickPer);
+function pickView(v){S.view=v;seg('view-seg',v,pickView);renderStats()}seg('view-seg','toUSD',pickView);
+function shiftP(k){const a=S.anchor;S.anchor=S.per==='week'?new Date(a.getFullYear(),a.getMonth(),a.getDate()+7*k):S.per==='month'?new Date(a.getFullYear(),a.getMonth()+k,1):new Date(a.getFullYear()+k,0,1);renderStats()}
+$('p-prev').onclick=()=>shiftP(-1);$('p-next').onclick=()=>shiftP(1);
 
+// ---------- история ----------
+function renderHist(){const h=S.hist;seg('ht-seg',h.type,v=>{S.hist.type=v;S.hist.limit=60;renderHist()});seg('hc-seg',h.cur,v=>{S.hist.cur=v;S.hist.limit=60;renderHist()});
+ const f=$('filters');f.replaceChildren();if(h.cat){const x=el('div','flt');x.append(el('span',null,'Только: '+h.cat));const b=el('button','ghost','✕');b.onclick=()=>{S.hist.cat=null;renderHist()};x.append(b);f.append(x)}
+ const q=h.q.trim().toLowerCase();
+ const list=sorted().filter(e=>(h.type==='all'||e.type===h.type)&&(h.cur==='all'||e.cur===h.cur)&&(!h.cat||(e.category||'')===h.cat||(!e.category&&(h.cat==='Без категории'||h.cat==='Без источника'||e.note.slice(0,30)===h.cat)))
+  &&(!q||[e.note,e.category,String(e.amount),describe(e).t].join(' ').toLowerCase().includes(q)));
+ const box=$('hist');box.replaceChildren();if(!list.length){box.append(el('div','empty','Ничего не найдено'));$('more').hidden=true;return}
+ let day='',ul=null;
+ for(const e of list.slice(0,h.limit)){if(e.date!==day){day=e.date;const dl=list.filter(x=>x.date===day),fl=flowsFor(dl,'toUSD');
+   const hd=el('div','day-h');hd.append(el('span',null,new Date(day+'T12:00').toLocaleDateString('ru-RU',{weekday:'short',day:'numeric',month:'long'})));
+   if(S.state.rate>0||dl.every(x=>x.cur==='USD'))hd.append(el('span','num',(fl.inc?'+'+fmt(fl.inc,'USD'):'')+(fl.inc&&fl.out?' / ':'')+(fl.out?'−'+fmt(fl.out,'USD'):'')));
+   box.append(hd);ul=el('ul','list card');ul.style.margin='0';ul.style.padding='4px 14px';box.append(ul)}
+  ul.append(entryRow(e,false))}
+ $('more').hidden=list.length<=h.limit}
+$('search').oninput=()=>{S.hist.q=$('search').value;S.hist.limit=60;renderHist()};
+$('more').onclick=()=>{S.hist.limit+=60;renderHist()};
+
+// ---------- настройки ----------
+function renderMore(){const st=S.state;if(document.activeElement!==$('rate'))$('rate').value=st.rate>0?String(st.rate).replace('.',','):'';
+ const chips=(id,list,kind)=>{const box=$(id);box.replaceChildren(...list.map(c=>{const ch=el('span','chip x',c),x=el('button',null,'×');x.type='button';x.title='Удалить';x.onclick=()=>{if(list.length<2)return note('Нужна хотя бы одна',true);call('setCategories',list.filter(y=>y!==c),kind)};ch.append(x);return ch}))};
+ chips('cats-out',st.categories,'out');chips('cats-in',st.incomeCategories||[],'income');
+ const g=st.shared;if(g&&g.goal>0){$('goal-card').hidden=false;$('goal-text').textContent=fmt(g.saved,'USD')+' из '+fmt(g.goal,'USD');$('goal-left').textContent='осталось '+fmt(Math.max(g.goal-g.saved,0),'USD');$('goal-bar').value=Math.min(100,g.saved/g.goal*100);
+  const mine=g.mine!=null?g.mine:0;$('goal-mine').textContent='Твой вклад: '+fmt(mine,'USD')+' · '+(g.saved>0?Math.round(mine/g.saved*100):0)+'% от общего'}else $('goal-card').hidden=true;
+ $('sheet-link').href=st.url||'#'}
+document.querySelectorAll('form[data-kind]').forEach(f=>f.onsubmit=ev=>{ev.preventDefault();const inp=f.querySelector('input'),v=inp.value.trim();if(!v||!S.state)return;const kind=f.dataset.kind,list=kind==='income'?(S.state.incomeCategories||[]):S.state.categories;if(list.includes(v))return note('Уже есть');call('setCategories',[...list,v],kind);inp.value=''});
+$('rate-save').onclick=()=>{let r;try{r=parse($('rate').value)}catch(err){return note(err.message,true)}call('setRate',r);note('Курс сохранён: '+fmt(r,'AMD')+' за 1 $')};
 function renderRates(x){const box=$('rates');box.replaceChildren();
- const card=(title,lo,hi,key)=>{const b=el('div','rate-box');b.append(el('small',null,title));const r1=el('div');r1.append(el('span',null,'дешевле: '+lo.bank),el('b',null,fmt(lo[key],'AMD')));const r2=el('div');r2.append(el('span',null,'дороже: '+hi.bank),el('b',null,fmt(hi[key],'AMD')));b.append(r1,r2);return b};
+ const card=(title,lo,hi,k)=>{const b=el('div','rate-box');b.append(el('small',null,title));const a=el('div');a.append(el('span',null,'дешевле · '+lo.bank),el('b','num',fmt(lo[k],'AMD')));const c=el('div');c.append(el('span',null,'дороже · '+hi.bank),el('b','num',fmt(hi[k],'AMD')));b.append(a,c);return b};
  box.append(card('Банк покупает $ (ты продаёшь)',x.buyMin,x.buyMax,'buy'),card('Банк продаёт $ (ты покупаешь)',x.sellMin,x.sellMax,'sell'));
  $('rates-note').textContent='rate.am · наличные · '+x.banks+' банков · '+new Date(x.updated).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}
 async function loadRates(force){const saved=LS.get('hustle-rates',null);if(saved&&!S.rates)renderRates(saved);
- try{S.rates=await rpc('getRates',!!force);LS.set('hustle-rates',S.rates);renderRates(S.rates)}catch(err){if(saved){renderRates(saved);$('rates-note').textContent+=' · сохранено ранее (нет сети)'}else $('rates').replaceChildren(el('div','rate-box muted','Курсы rate.am недоступны: '+err.message))}}
+ try{S.rates=await rpc('getRates',!!force);LS.set('hustle-rates',S.rates);renderRates(S.rates)}catch(err){if(saved){renderRates(saved);$('rates-note').textContent+=' · сохранено ранее'}else $('rates').replaceChildren(el('div','rate-box muted','Курсы rate.am недоступны: '+err.message))}}
 $('rates-refresh').onclick=()=>loadRates(true);
 
-async function refresh(){if(S.busy||flushing)return;if(OUTBOX.length)return flush();S.busy=true;controls();try{setBase(await rpc('getState'));show()}catch(err){if(!err.offline&&!err.auth)note('Не удалось обновить: '+err.message,true);if(S.state)$('status').textContent=statusText()}finally{S.busy=false;controls()}}
-$('refresh').onclick=refresh;
-seg('type-seg','income',setType);seg('cur-seg','USD',setCur);seg('from-seg','income',setFrom);$('date').value=today();
+// ---------- навигация ----------
+function go(tab){S.tab=tab;for(const t of ['home','stats','hist','more'])$('tab-'+t).hidden=t!==tab;
+ document.querySelectorAll('.tabbar [data-go]').forEach(b=>b.classList.toggle('on',b.dataset.go===tab));
+ if(tab==='hist')$('search').value=S.hist.q;window.scrollTo(0,0);render()}
+document.querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>go(b.dataset.go));
+document.querySelectorAll('[data-new]').forEach(b=>b.onclick=()=>openSheet(b.dataset.new));
+
+// ---------- окно записи ----------
+function openSheet(type,entry){if(!S.state)return;S.edit=entry&&entry.src==='site'?entry:null;
+ if(entry&&entry.src==='table'){note('Эта строка добавлена в таблицу вручную — правь её в таблице');return}
+ const F=S.form;F.type=entry?entry.type:type;F.cur=entry?entry.cur:F.cur;F.from=entry&&entry.from||'income';F.cat=entry?entry.category:'';
+ $('form-title').textContent=S.edit?'Изменить запись':'Новая запись';$('delete').hidden=!S.edit;
+ $('amount').value=entry?String(entry.amount).replace('.',','):'';$('saved').value=entry&&entry.saved?String(entry.saved).replace('.',','):'';$('note').value=entry?entry.note:'';$('date').value=entry?entry.date:today();
+ setType(F.type);setCur(F.cur);setFrom(F.from);$('sheet').hidden=false;document.body.style.overflow='hidden';setTimeout(()=>$('amount').focus(),60)}
+function closeSheet(){$('sheet').hidden=true;document.body.style.overflow='';S.edit=null}
+$('sheet-close').onclick=closeSheet;$('sheet-bg').onclick=closeSheet;
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('sheet').hidden)closeSheet()});
+function setType(t){S.form.type=t;seg('type-seg',t,setType);$('saved-field').hidden=t!=='income';$('from-field').hidden=t!=='out';$('cat-field').hidden=t==='save';
+ $('cat-label').textContent=t==='income'?'Источник':'Категория';renderCatChips();$('submit').textContent=S.edit?'Сохранить':t==='income'?'Записать доход':t==='save'?'Отложить':'Записать снятие';hint()}
+function setCur(c){S.form.cur=c;seg('cur-seg',c,setCur);hint()}
+function setFrom(f){S.form.from=f;seg('from-seg',f,setFrom);hint()}
+function renderCatChips(){const F=S.form,list=(F.type==='income'?S.state.incomeCategories:S.state.categories)||[],all=F.cat&&!list.includes(F.cat)?[...list,F.cat]:list;
+ $('cat-chips').replaceChildren(...all.map(c=>{const b=el('button','chip'+(F.cat===c?' on':''),c);b.type='button';b.onclick=()=>{F.cat=F.cat===c?'':c;renderCatChips()};return b}))}
+function hint(){const st=S.state,F=S.form;if(!st)return;const w=wallets(st.entries.filter(e=>!S.edit||e.id!==S.edit.id))[F.cur],r=(S.edit&&S.edit.rate)||st.rate,p=[];
+ let a=0;try{a=parse($('amount').value,true)}catch{}
+ if(a&&r>0)p.push('≈ '+(F.cur==='USD'?fmt(a*r,'AMD'):fmt(a/r,'USD')));
+ if(F.type==='out')p.push('доступно '+fmt(F.from==='savings'?w.saved:w.free,F.cur));
+ if(F.type==='save')p.push('свободно '+fmt(w.free,F.cur));
+ if(F.cur==='AMD'&&!(r>0))p.push('нужен курс в «Ещё»');
+ $('hint').textContent=p.join(' · ')}
+$('amount').oninput=hint;
+$('form').onsubmit=ev=>{ev.preventDefault();if(!S.state)return;const F=S.form;let d;
+ try{d={type:F.type,cur:F.cur,date:$('date').value,amount:parse($('amount').value),saved:F.type==='income'?parse($('saved').value,true):0,from:F.type==='out'?F.from:'',category:F.type==='save'?'':F.cat,note:$('note').value.trim(),rate:0};
+  if(d.saved>d.amount)throw Error('Нельзя отложить больше дохода');if(!/^\d{4}-\d{2}-\d{2}$/.test(d.date))throw Error('Выбери дату');
+  if(d.cur==='AMD'){d.rate=(S.edit&&S.edit.cur==='AMD'&&S.edit.rate)||S.state.rate;if(!(d.rate>0))throw Error('Сначала поставь курс во вкладке «Ещё» — драмы идут в таблицу в долларах')}}catch(err){return note(err.message,true)}
+ const w=wallets(S.state.entries.filter(e=>!S.edit||e.id!==S.edit.id))[d.cur];
+ if(d.type==='out'){const have=d.from==='savings'?w.saved:w.free;if(d.amount>have&&!confirm('Там только '+fmt(have,d.cur)+'. Всё равно записать?'))return}
+ if(d.type==='save'&&d.amount>w.free&&!confirm('Свободно только '+fmt(w.free,d.cur)+'. Всё равно отложить?'))return;
+ const was=S.edit;if(was)call('updateEntry',{...d,id:was.id});else call('addEntry',{...d,id:crypto.randomUUID()});
+ closeSheet();note((was?'Изменено':'Записано: '+describe(d).t.toLowerCase()+' '+fmt(d.amount,d.cur))+(S.offline?' · в таблицу уйдёт, когда будет интернет':''))};
+$('delete').onclick=()=>{const e=S.edit;if(!e)return;if(!confirm('Удалить «'+describe(e).t+' '+fmt(e.amount,e.cur)+'» от '+dmy(e.date)+'?\nСтрока во «Ввод» тоже очистится.'))return;call('deleteEntry',e.id);closeSheet();note('Удалено')};
+
+// ---------- старт ----------
+$('refresh').onclick=()=>{refresh();loadRates(false)};
 if(KEY){show();refresh();loadRates(false)}else showLogin();
-window.addEventListener('online',()=>{if(KEY)refresh()});window.addEventListener('offline',()=>{S.offline=true;if(S.state)$('status').textContent=statusText()});
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
-setInterval(()=>{if(KEY&&!document.hidden&&!S.edit)refresh()},60000);
-document.addEventListener('visibilitychange',()=>{if(KEY&&!document.hidden&&!S.edit)refresh()});
+setInterval(()=>{if(KEY&&!document.hidden&&$('sheet').hidden)refresh()},60000);
+document.addEventListener('visibilitychange',()=>{if(KEY&&!document.hidden)refresh()});
+window.addEventListener('online',()=>{if(KEY)refresh()});window.addEventListener('offline',()=>{S.offline=true;if(S.state)$('status').textContent=statusText()});
 </script></body></html>
