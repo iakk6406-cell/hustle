@@ -151,7 +151,7 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
    <button data-new="transfer"><i>🔄</i>Перевод</button><button data-new="lend"><i>🤝</i>Долг</button></div>
   <div class="card" id="mot"></div>
   <div class="card"><div class="card-h"><h2>Где деньги</h2><button class="link" data-go="settings" data-focus="accounts">Счета</button></div><div id="places"></div></div>
-  <div class="card"><div class="card-h"><h2 id="month-title">Этот месяц</h2><button class="link" data-go="stats">Анализ →</button></div><div id="month"></div></div>
+  <div class="card"><div class="card-h"><h2 id="month-title">Моя неделя</h2><button class="link" data-go="stats">Анализ →</button></div><div id="month"></div></div>
   <div class="card"><div class="card-h"><h2>Последние записи</h2><button class="link" data-go="hist">Все →</button></div><ul class="list" id="recent"></ul></div>
  </section>
 
@@ -190,7 +190,7 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
  <section id="tab-settings" hidden>
   <h1>Настройки</h1>
   <div class="card"><h2>Курс</h2>
-   <div class="row"><label class="grow" style="margin:0">Мой курс: ֏ за 1 $<input id="rate" inputmode="decimal" placeholder="напр. 385"></label><button id="rate-save" style="align-self:flex-end">Сохранить</button></div>
+   <div class="row"><label class="grow" style="margin:0">Мой курс: ֏ за 1 $<input id="rate" inputmode="decimal" placeholder="358"></label><button id="rate-save" style="align-self:flex-end">Сохранить</button></div>
    <div id="rates"></div><div class="row" style="justify-content:space-between"><small id="rates-note"></small><button class="link" id="rates-refresh">↻ rate.am</button></div></div>
   <div class="card"><h2>Моя цель</h2><div class="row"><input class="grow" id="g-title" maxlength="60" placeholder="На что копишь — напр. «Подушка»"></div>
    <div class="row" style="margin-top:8px"><input class="grow" id="g-amount" inputmode="decimal" placeholder="Сумма цели" style="margin:0"><div class="seg" id="g-cur"><button data-v="USD">$</button><button data-v="AMD">֏</button></div></div>
@@ -201,9 +201,9 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
   <div class="card"><h2>Источники дохода</h2><div class="chips" data-list="incomeCategories"></div></div>
   <div class="card" id="goal-card"><h2>Общая цель (лист Dashboard)</h2><div class="kv"><b class="num" id="goal-text">—</b><span class="muted num" id="goal-left"></span></div>
    <div class="bar"><div id="goal-bar" style="background:var(--gold);width:0"></div></div><small id="goal-mine"></small></div>
-  <div class="card"><a id="sheet-link" target="_blank" rel="noopener" style="color:var(--gold)">Общая таблица ↗</a><br>
-   <a id="private-link" target="_blank" rel="noopener" style="color:var(--gold);display:inline-block;margin-top:8px">Мой личный журнал ↗</a>
-   <p class="muted" style="font-size:13px;margin:10px 0 0">Во «Ввод» идут только дата, имя и суммы в $: доходы и всё, что меняет отложенное. Комментарии, категории, счета и долги — только в личном журнале на твоём Google Диске.</p>
+  <div class="card"><a id="sheet-link" target="_blank" rel="noopener" style="color:var(--gold)">Моя таблица</a><br>
+   <a id="private-link" target="_blank" rel="noopener" style="color:var(--gold);display:inline-block;margin-top:8px">Мой журнал</a>
+   <p class="muted" style="font-size:13px;margin:10px 0 0">Все операции хранятся в твоей личной таблице: доходы, расходы, накопления, счета и долги. Итоги считаются в драмах по курсу записи.</p>
    <div class="row" style="margin-top:8px"><button class="ghost" id="switch-api" style="padding-left:0">Перенести на другой скрипт</button><button class="ghost" id="logout">Выйти на этом устройстве</button></div></div>
  </section>
 </div>
@@ -246,17 +246,17 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
 <script>
 'use strict';
 const $=id=>document.getElementById(id);
-const LEGACY_API='https://script.google.com/macros/s/AKfycbwCmwsRq_MAvaSUv4S3te8_5bCdTCkoZhKlBqG9LkiSpAbPcpbPepMUq74N7hUWzkt2/exec';   // первая версия, до выбора своего скрипта
+const LEGACY_API='';   // первая версия, до выбора своего скрипта
 const API_RE=/^https:\/\/script\.google\.com\/(a\/[^/]+\/)?macros\/s\/[\w-]+\/exec$/;
 const SYM={USD:'$',AMD:'֏'},OTHER={USD:'AMD',AMD:'USD'};
 const PALETTE=['#3987e5','#d95926','#199e70','#c98500','#d55181','#008300','#9085e9','#e66767'];   // dataviz, тёмная тема, фиксированный порядок
 const EMOJI=['💳','💵','⏳','🪙','🏦','📱','💼','🛠️','🏷️','🎁','✨','🍔','☕','🛒','🚕','⛽','🛍️','👕','🔁','🏠','💡','📶','🎉','🎮','✈️','💊','🏋️','📚','🐶','👶','💄','🍺','🎓','🧾','📦','❤️'];
 const DEBT=['lend','lendBack','borrow','repay'];
 const TYPE_NAME={income:'Доход',out:'Расход',save:'Отложил',transfer:'Перевод',lend:'Дал в долг',lendBack:'Мне вернули',borrow:'Взял в долг',repay:'Вернул долг'};
-const S={state:null,busy:false,offline:false,tab:'home',disp:'USD',
- per:{kind:'month',anchor:new Date(),from:'',to:''},an:{mode:'out',cf:'all',open:null},
+const S={state:null,busy:false,offline:false,tab:'home',disp:'AMD',
+ per:{kind:'week',anchor:new Date(),from:'',to:''},an:{mode:'out',cf:'all',open:null},
  hist:{type:'all',cur:'all',acc:null,q:'',cat:null,person:null,limit:60},
- f:{type:'out',cur:'USD',from:'income',cat:'',acc:'',toAcc:'',toCur:'USD',toTouched:false},edit:null,openPerson:null,rates:null};
+ f:{type:'out',cur:'AMD',from:'income',cat:'',acc:'',toAcc:'',toCur:'USD',toTouched:false},edit:null,openPerson:null,rates:null};
 const today=()=>new Date().toLocaleDateString('sv-SE');
 const r2=v=>Math.round(v*100)/100;
 function fmt(v,cur){if(v==null||!isFinite(v))return '—';return new Intl.NumberFormat('ru-RU',{minimumFractionDigits:cur==='USD'&&Math.abs(v)%1>0.004?2:0,maximumFractionDigits:cur==='USD'?2:0}).format(v)+' '+SYM[cur]}
@@ -269,7 +269,7 @@ const dmy=d=>{const [y,m,dd]=d.split('-');return dd+'.'+m+'.'+y.slice(2)};
 const key=d=>d.toLocaleDateString('sv-SE');
 const plural=(n,a,b,c)=>{n=Math.abs(n)%100;const m=n%10;return n>10&&n<20?c:m===1?a:m>1&&m<5?b:c};
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
-S.disp=LS.get('hustle-disp','USD')==='AMD'?'AMD':'USD';
+S.disp=LS.get('hustle-disp','AMD')==='AMD'?'AMD':'USD';
 
 // ================= связь с таблицей + офлайн =================
 let KEY='',API='';try{KEY=localStorage.getItem('hustle-key')||'';API=localStorage.getItem('hustle-api')||(KEY?LEGACY_API:'')}catch{}
@@ -405,8 +405,8 @@ function renderHome(){const st=S.state,L=ledger(st.entries),B=L.B;
  if(rec.USD||rec.AMD||pay.USD||pay.AMD){const n=sumDisp(B.USD.free+B.USD.saved+rec.USD-pay.USD,B.AMD.free+B.AMD.saved+rec.AMD-pay.AMD);
   const x=el('div','muted');x.style.cssText='font-size:13px;margin-top:10px;cursor:pointer';x.textContent=(rec.USD||rec.AMD?'Тебе должны '+recD.main+'. ':'')+(pay.USD||pay.AMD?'Ты должен '+payD.main+'. ':'')+(n!=null?'С учётом долгов: '+fmt(n,S.disp):'');x.onclick=()=>go('debts');h.append(x)}
  renderMotivation(L);renderPlaces(L,rec,pay);
- const m=periodRange({kind:'month',anchor:new Date()}),list=st.entries.filter(e=>inRange(e,m)),f=flows(list,'all'),box=$('month');box.replaceChildren();
- $('month-title').textContent=new Date().toLocaleDateString('ru-RU',{month:'long'}).replace(/^./,c=>c.toUpperCase());
+ const m=periodRange({kind:'week',anchor:new Date()}),list=st.entries.filter(e=>inRange(e,m)),f=flows(list,'all'),box=$('month');box.replaceChildren();
+ $('month-title').textContent='Моя неделя';
  if(!list.length)box.append(el('div','empty','В этом месяце записей пока нет'));
  else for(const [k,v,cls] of [['Пришло',f.inc,''],['Ушло',f.out,''],['Отложил',f.sv,'sv'],['Итог',f.inc-f.out,'']]){const kv=el('div','kv');kv.append(el('span',null,k),el('b','num '+cls,k==='Итог'?sfmt(v,S.disp):fmt(v,S.disp)));box.append(kv)}
  if(f.skipped)box.append(el('small','faint','Без курса не посчитано: '+f.skipped+' '+plural(f.skipped,'запись','записи','записей')));
@@ -432,7 +432,7 @@ function renderMotivation(L){const box=$('mot'),st=S.state,g=st.goal,rate=rateNo
  const wk=d=>{const x=new Date(d+'T12:00');x.setDate(x.getDate()-((x.getDay()+6)%7));return key(x)};const per=new Map();
  for(const e of st.entries){const d=savedDelta(e);if(!d)continue;const v=conv(d,e.cur,'USD',rateOf(e));if(v==null)continue;per.set(wk(e.date),(per.get(wk(e.date))||0)+v)}
  let streak=0,cur=new Date();cur.setDate(cur.getDate()-((cur.getDay()+6)%7));if(!(per.get(key(cur))>0))cur.setDate(cur.getDate()-7);while(per.get(key(cur))>0){streak++;cur.setDate(cur.getDate()-7)}
- const mf=flows(st.entries.filter(e=>inRange(e,periodRange({kind:'month',anchor:new Date()}))),'all'),srate=mf.inc>0?Math.round(mf.sv/mf.inc*100):null;
+ const mf=flows(st.entries.filter(e=>inRange(e,periodRange({kind:'week',anchor:new Date()}))),'all'),srate=mf.inc>0?Math.round(mf.sv/mf.inc*100):null;
  const head=el('div','card-h');head.append(el('h2',null,g?'🎯 '+g.title:'🎯 Цель'));const b=el('button','link',g?'Изменить':'Поставить цель');b.onclick=()=>go('settings','goal');head.append(b);box.append(head);
  if(g&&savedNow!=null){const pct=Math.max(0,Math.min(100,savedNow/g.amount*100)),left=Math.max(0,g.amount-savedNow);
   const wrap=el('div','mot');wrap.append(ring(pct));const t=el('div');
@@ -597,7 +597,7 @@ function renderSettings(){const st=S.state;if(document.activeElement!==$('rate')
   const add=el('button','chip','＋ Добавить');add.type='button';add.onclick=()=>openPick(k);box.append(add)});
  const sg=st.shared;if(sg&&sg.goal>0){$('goal-card').hidden=false;$('goal-text').textContent=fmt(sg.saved,'USD')+' из '+fmt(sg.goal,'USD');$('goal-left').textContent='осталось '+fmt(Math.max(sg.goal-sg.saved,0),'USD');$('goal-bar').style.width=Math.min(100,Math.max(0,sg.saved/sg.goal*100))+'%';
   $('goal-mine').textContent='Твой вклад: '+fmt(sg.mine||0,'USD')+' · '+(sg.saved>0?Math.round((sg.mine||0)/sg.saved*100):0)+'% от общего'}else $('goal-card').hidden=true;
- $('sheet-link').href=st.url||'#';$('private-link').href=st.privateUrl||'#';$('private-link').hidden=!st.privateUrl;renderTg()}
+ $('sheet-link').href=st.url||'#';$('private-link').href=st.privateUrl||'#';$('private-link').hidden=!st.privateUrl||st.privateUrl===st.url;renderTg()}
 function renderTg(){const box=$('tg'),t=(S.state&&S.state.telegram)||{};box.replaceChildren();
  const p=(txt,cls)=>{const x=el('p',cls||'muted',txt);x.style.cssText='margin:6px 0;font-size:14px';box.append(x);return x};
  const btn=(txt,cls,fn)=>{const b=el('button',cls,txt);b.type='button';b.onclick=fn;return b};

@@ -407,7 +407,7 @@ function deleteEntry_(id,orig){
     if(!row) throw Error('Запись не найдена — обнови страницу');
     const before=readLog_(sh,tz).find(x=>x.id===String(id));
     syncInput_(before,null,tz);
-    sh.deleteRow(row);
+    sh.getRange(row,1,1,HEAD.length).clearContent().clearNote();
     return getState_();
   });
 }
