@@ -10,6 +10,7 @@
 const SETTINGS = {
   name: 'Я',   // твоё имя — так ты будешь подписан в колонке «Кто»
   table: '',   // ссылка на общую таблицу, если скрипт создан отдельно на script.google.com; пусто — таблица, к которой привязан скрипт
+  journal: '', // ссылка на твой личный журнал «Хасл · … · личное», если переносишь скрипт; пусто — создастся сам
   key: ''      // оставь пустым — ключ входа придумается сам при setup
 };
 // =====================================================
@@ -31,9 +32,11 @@ const RATES_URL = 'https://www.rate.am/hy/armenian-dram-exchange-rates/banks';
 
 // ---------- API для приложения (POST, ключ обязателен) ----------
 const API = {getState:()=>getState_(), addEntry:addEntry_, updateEntry:updateEntry_, deleteEntry:deleteEntry_,
-  setRate:setRate_, setCategories:setCategories_, setAccounts:setAccounts_, setGoal:setGoal_, getRates:getRates_};
+  setRate:setRate_, setCategories:setCategories_, setAccounts:setAccounts_, setGoal:setGoal_, getRates:getRates_,
+  tgConnect:tgConnect_, tgDisconnect:tgDisconnect_, tgSettings:tgSettings_};
 function doGet(){ return ContentService.createTextOutput('ХАСЛ API'); }
 function doPost(e){
+  if(e&&e.parameter&&e.parameter.tg) return tgWebhook_(e);   // сообщения от Telegram-бота
   let out;
   try{
     const req=JSON.parse(e&&e.postData&&e.postData.contents||'{}');
@@ -66,12 +69,36 @@ function ymd_(v,tz){
 }
 function date_(ymd,tz){ return Utilities.parseDate(ymd+' 12:00',tz,'yyyy-MM-dd HH:mm'); }
 function locked_(fn){ const lock=LockService.getScriptLock(); lock.waitLock(20000); try{ return fn(); } finally { lock.releaseLock(); } }
-function rate_(){ return num_(props_().getProperty('rate')); }
-function list_(key,def){ try{ const c=JSON.parse(props_().getProperty(key)||'null'); if(Array.isArray(c)&&c.length) return c; }catch(err){} return def; }
+function rate_(){ return num_(cfg_('rate')); }
+// ---------- настройки — в личном журнале (лист «Настройки»), а не в свойствах скрипта ----------
+const CFG_KEYS = ['rate','categories','incomeCategories','accounts','goal'];   // раньше лежали в свойствах скрипта
+let CFG_=null;
+function cfgSheet_(){
+  const ss=private_(true); let sh=ss.getSheetByName('Настройки');
+  if(!sh){ sh=ss.insertSheet('Настройки'); sh.getRange('A:B').setNumberFormat('@'); sh.getRange(1,1,1,2).setValues([['Ключ','Значение']]).setFontWeight('bold'); sh.setColumnWidth(2,520); }
+  return sh;
+}
+function cfgAll_(){
+  if(CFG_) return CFG_;
+  const sh=cfgSheet_(), n=sh.getLastRow(), all={};
+  if(n>1) sh.getRange(2,1,n-1,2).getValues().forEach(r=>{ if(r[0]!=='') all[String(r[0])]=String(r[1]); });
+  let moved=false; const p=props_();
+  CFG_KEYS.forEach(k=>{ const v=p.getProperty(k); if(v!=null&&all[k]==null){ sh.appendRow([k,v]); all[k]=v; moved=true; } if(v!=null) p.deleteProperty(k); });
+  CFG_=all; return all;
+}
+function cfg_(k){ const v=cfgAll_()[k]; return v==null||v===''?null:v; }
+function setCfg_(k,v){
+  const sh=cfgSheet_(), all=cfgAll_(), n=sh.getLastRow();
+  const keys=n>1?sh.getRange(2,1,n-1,1).getValues().map(r=>String(r[0])):[], i=keys.indexOf(k);
+  if(v==null){ if(i>=0) sh.deleteRow(i+2); delete all[k]; return; }
+  if(i>=0) sh.getRange(i+2,2).setValue(String(v)); else sh.appendRow([k,String(v)]);
+  all[k]=String(v);
+}
+function list_(key,def){ try{ const c=JSON.parse(cfg_(key)||'null'); if(Array.isArray(c)&&c.length) return c; }catch(err){} return def; }
 // Списки категорий/счетов: [{n:'Еда',i:'🍔'}]; старые версии хранили просто строки
 function items_(key,def){
-  const icons={}; def.forEach(x=>icons[x.n]=x.i);
-  return list_(key,def).map(x=>typeof x==='string'?{n:x,i:icons[x]||'•'}:{n:String(x.n||''),i:String(x.i||'•')}).filter(x=>x.n);
+  const icons={}; CATEGORIES.concat(INCOME_CATEGORIES,ACCOUNTS,def).forEach(x=>icons[x.n]=x.i);
+  return list_(key,def).map(x=>typeof x==='string'?{n:x,i:icons[x]||'🏷️'}:{n:String(x.n||''),i:String(x.i||'•')}).filter(x=>x.n);
 }
 function cleanItems_(list){
   if(!Array.isArray(list)) throw Error('Нужен список');
@@ -85,7 +112,8 @@ function typeOf_(label){ label=String(label||'').trim(); return keyOf_(TYPES,lab
 
 // ---------- личный файл (журнал) — только на Диске владельца ----------
 function private_(create){
-  const p=props_(), id=p.getProperty('privateId');
+  const p=props_(); let id=p.getProperty('privateId');
+  if(!id&&SETTINGS.journal){ id=SpreadsheetApp.openByUrl(SETTINGS.journal).getId(); p.setProperty('privateId',id); }
   if(id){ try{ return SpreadsheetApp.openById(id); }catch(err){ throw Error('Не открывается личный журнал «'+PRIVATE_NAME+'» — он не удалён?'); } }
   if(!create) return null;
   const ss=SpreadsheetApp.create(PRIVATE_NAME);
@@ -219,7 +247,8 @@ function setup(){
   let key=token_();
   if(!key){ key=Utilities.getUuid().replace(/-/g,'').slice(0,24); props_().setProperty('token',key); }
   migratePrivate_(); migrate_();
-  const ss=private_(true); log_(true);
+  const ss=private_(true); log_(true); cfgAll_();
+  try{ ensureWeeklyTrigger_(); }catch(err){ Logger.log('Еженедельный отчёт бота не включён: '+err.message); }
   Logger.log(['','✅ Готово, '+ME+'!','',
     'Ключ входа:  '+key,'(сохрани его, никому не показывай)','',
     'Личный журнал: '+ss.getUrl(),'',
@@ -307,10 +336,11 @@ function getState_(){
     type:r.income>0?'income':(r.saved<0?'out':'save'), amount:r.income>0?r.income:Math.abs(r.saved),
     saved:r.income>0?r.saved:0, from:r.income<=0&&r.saved<0?'savings':''}));
   const dash=ss.getSheetByName('Dashboard'), mine=all.filter(r=>r.who===ME);
-  let goal=null; try{ goal=JSON.parse(props_().getProperty('goal')||'null'); }catch(err){}
+  let goal=null; try{ goal=JSON.parse(cfg_('goal')||'null'); }catch(err){}
   return {me:ME, entries:log.concat(table), rate:rate_(), goal,
     categories:items_('categories',CATEGORIES), incomeCategories:items_('incomeCategories',INCOME_CATEGORIES), accounts:items_('accounts',ACCOUNTS),
     shared:{goal:dash?num_(dash.getRange('B4').getValue()):0, saved:round_(all.reduce((s,r)=>s+r.saved,0)), mine:round_(mine.reduce((s,r)=>s+r.saved,0))},
+    telegram:{bot:cfg_('tgBot')||'', bound:!!cfg_('tgChat'), weekly:cfg_('tgWeekly')!=='0', code:cfg_('tgChat')?'':(cfg_('tgCode')||'')},
     url:ss.getUrl(), privateUrl:(private_(false)||{getUrl:()=>''}).getUrl(), updated:new Date().toISOString()};
 }
 function addEntry_(e){
@@ -344,17 +374,17 @@ function deleteEntry_(id){
 }
 function setRate_(rate){
   const r=round_(rate); if(!(r>0&&r<100000)) throw Error('Курс — число драмов за 1 $');
-  props_().setProperty('rate',String(r)); migrate_(); return getState_();
+  setCfg_('rate',r); migrate_(); return getState_();
 }
 function setCategories_(list,kind){
-  props_().setProperty(kind==='income'?'incomeCategories':'categories',JSON.stringify(cleanItems_(list))); return getState_();
+  setCfg_(kind==='income'?'incomeCategories':'categories',JSON.stringify(cleanItems_(list))); return getState_();
 }
-function setAccounts_(list){ props_().setProperty('accounts',JSON.stringify(cleanItems_(list))); return getState_(); }
+function setAccounts_(list){ setCfg_('accounts',JSON.stringify(cleanItems_(list))); return getState_(); }
 function setGoal_(g){
-  if(g===null){ props_().deleteProperty('goal'); return getState_(); }
+  if(g===null){ setCfg_('goal',null); return getState_(); }
   const amount=round_(g&&g.amount), cur=g&&g.cur==='AMD'?'AMD':'USD';
   if(!(amount>0)) throw Error('Цель — сумма больше нуля');
-  props_().setProperty('goal',JSON.stringify({title:String(g.title||'').trim().slice(0,60)||'Моя цель', amount, cur}));
+  setCfg_('goal',JSON.stringify({title:String(g.title||'').trim().slice(0,60)||'Моя цель', amount, cur}));
   return getState_();
 }
 
@@ -386,4 +416,244 @@ function parseRates_(html){
   const pick=(key,dir)=>banks.reduce((a,b)=>dir*(b[key]-a[key])>0?b:a);
   return {banks:banks.length, buyMin:pick('buy',-1), buyMax:pick('buy',1), sellMin:pick('sell',-1), sellMax:pick('sell',1),
     updated:Math.max.apply(null,banks.map(b=>b.updated))||Date.now()};
+}
+
+// ================= Telegram-бот: пишешь сумму — дальше кнопки =================
+const TG_API = 'https://api.telegram.org/bot';
+const TG_KB = {keyboard:[[{text:'📊 Баланс'},{text:'📅 Неделя'}],[{text:'↩️ Отменить последнее'}]], resize_keyboard:true, is_persistent:true};
+const TG_TYPES = {out:'🧾 Расход', income:'💰 Доход', save:'🐖 Отложить', lend:'🤝 Дал в долг', lendBack:'🤝 Мне вернули', borrow:'🧾 Взял в долг', repay:'🧾 Я вернул'};
+
+function tgCall_(method,payload,token){
+  const tok=token||cfg_('tgToken'); if(!tok) throw Error('Бот не подключён');
+  const r=UrlFetchApp.fetch(TG_API+tok+'/'+method,{method:'post',contentType:'application/json',payload:JSON.stringify(payload||{}),muteHttpExceptions:true});
+  let j={}; try{ j=JSON.parse(r.getContentText()); }catch(err){}
+  if(!j.ok) throw Error('Telegram: '+(j.description||('ошибка '+r.getResponseCode())));
+  return j.result;
+}
+function tgConnect_(token,url){
+  token=String(token||'').trim(); url=String(url||'').trim();
+  if(!/^\d{5,}:[\w-]{30,}$/.test(token)) throw Error('Это не похоже на токен бота — скопируй его из @BotFather целиком');
+  if(!/^https:\/\/script\.google\.com\/(a\/[^/]+\/)?macros\/s\/[\w-]+\/exec$/.test(url)) throw Error('Нужна ссылка на скрипт /exec');
+  const me=tgCall_('getMe',{},token), secret=Utilities.getUuid().replace(/-/g,'');
+  tgCall_('setWebhook',{url:url+'?tg='+secret, allowed_updates:['message','callback_query'], drop_pending_updates:true},token);
+  try{ tgCall_('setMyCommands',{commands:[{command:'balance',description:'Баланс'},{command:'week',description:'Неделя'},{command:'undo',description:'Отменить последнее'}]},token); }catch(err){}
+  setCfg_('tgToken',token); setCfg_('tgSecret',secret); setCfg_('tgBot',me.username); setCfg_('tgChat',null);
+  setCfg_('tgCode',Utilities.getUuid().replace(/-/g,'').slice(0,12));
+  return getState_();
+}
+function tgDisconnect_(){
+  try{ tgCall_('deleteWebhook',{drop_pending_updates:true}); }catch(err){}
+  ['tgToken','tgSecret','tgBot','tgChat','tgCode'].forEach(k=>setCfg_(k,null));
+  return getState_();
+}
+function tgSettings_(o){ if(o&&'weekly' in o) setCfg_('tgWeekly',o.weekly?'1':'0'); return getState_(); }
+
+function tgWebhook_(e){
+  try{
+    if(e.parameter.tg!==cfg_('tgSecret')) return HtmlService.createHtmlOutput('');
+    const u=JSON.parse(e.postData&&e.postData.contents||'{}'), cache=CacheService.getScriptCache();
+    if(u.update_id!=null){ const k='tgu:'+u.update_id; if(cache.get(k)) return HtmlService.createHtmlOutput(''); cache.put(k,'1',21600); }
+    tgUpdate_(u);
+  }catch(err){ console.error(err); }
+  return HtmlService.createHtmlOutput('');
+}
+function tgSend_(chat,text,markup){ return tgCall_('sendMessage',{chat_id:chat,text:text,parse_mode:'HTML',reply_markup:markup||TG_KB,disable_web_page_preview:true}); }
+function tgEdit_(chat,msg,text,markup){
+  try{ return tgCall_('editMessageText',{chat_id:chat,message_id:msg,text:text,parse_mode:'HTML',reply_markup:markup||{inline_keyboard:[]}}); }
+  catch(err){ if(/not modified/.test(err.message)) return null; return tgSend_(chat,text,markup); }
+}
+function esc_(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmt_(v,cur){
+  const neg=v<0, a=Math.abs(v), dec=cur==='USD'&&Math.abs(a%1)>0.004;
+  const s=(dec?a.toFixed(2):String(Math.round(a))).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,' ');
+  return (neg?'−':'')+s+' '+(cur==='USD'?'$':'֏');
+}
+function today_(){ return Utilities.formatDate(new Date(),book_().getSpreadsheetTimeZone(),'yyyy-MM-dd'); }
+
+// Разбор первого сообщения: «2000», «50$», «+50 $ зарплата», «2к шаурма», «5000 դրամ»
+const TG_RE = /^([+\-−]?)\s*([$֏])?\s*(\d[\d\s.,]*?)\s*([kкKК])?(?=\s|$|[$֏])\s*(\$|֏|(?:usd|amd|дол\S*|драм\S*|др\.?|դոլ\S*|դր\S*)(?=\s|$))?\s*([\s\S]*)$/i;
+function tgParse_(t){
+  const m=String(t).trim().match(TG_RE);
+  if(!m) return null;
+  let num=m[3].replace(/\s/g,'');
+  num=/^\d{1,3}([.,]\d{3})+$/.test(num)?num.replace(/[.,]/g,''):num.replace(',','.');
+  let v=parseFloat(num); if(!(v>0)) return null; if(m[4]) v*=1000; v=Math.round(v*100)/100;
+  const sym=m[2]||m[5]||'', c=!sym?null:/^(\$|usd|дол|դոլ)/i.test(sym)?'USD':'AMD';
+  return {amount:v, cur:c, type:m[1]==='+'?'income':m[1]?'out':null, note:m[6].trim().slice(0,300)};
+}
+
+function tgDraft_(chat){ const c=CacheService.getScriptCache().get('tgd:'+chat); return c?JSON.parse(c):null; }
+function tgSave_(chat,d){ const c=CacheService.getScriptCache(); if(d) c.put('tgd:'+chat,JSON.stringify(d),3600); else c.remove('tgd:'+chat); }
+
+function tgUpdate_(u){
+  if(u.callback_query) return tgCallback_(u.callback_query);
+  const m=u.message; if(!m||!m.chat||m.chat.type!=='private') return;
+  const chat=String(m.chat.id), text=String(m.text||'').trim(), bound=cfg_('tgChat');
+  if(/^\/start\b/.test(text)){
+    const code=text.split(/\s+/)[1]||'';
+    if(!bound&&code&&code===cfg_('tgCode')){ setCfg_('tgChat',chat); setCfg_('tgCode',null);
+      return tgSend_(chat,'✅ Готово, '+esc_(ME)+'! Бот привязан к твоему учёту.\n\nПросто напиши сумму: <b>2000</b>, <b>50$</b>, <b>+300$</b>, <b>2к шаурма</b> — дальше выберешь кнопками валюту, что это, категорию и счёт.'); }
+    if(bound===chat) return tgSend_(chat,'Напиши сумму — дальше кнопки. Внизу: баланс, неделя, отменить.');
+    return tgSend_(chat,'Это личный бот. Подключи свой в приложении ХАСЛ → ⚙ → Telegram.',{remove_keyboard:true});
+  }
+  if(!bound||bound!==chat) return;
+  if(/^(📊\s*)?баланс$|^\/balance$/i.test(text)) return tgBalance_(chat);
+  if(/^(📅\s*)?неделя$|^\/week$/i.test(text)) return tgReport_(chat,7,false);
+  if(/отменить последнее|^\/undo$/i.test(text)) return tgUndo_(chat,cfg_('tgLast'),null);
+  if(!text) return tgSend_(chat,'Пришли сумму текстом: <b>2000</b> или <b>50$</b>.');
+  const d=tgDraft_(chat);
+  if(d&&d.wait){                                   // ждём текст: комментарий, имя или сумму «отложил»
+    if(d.wait==='note'){ d.note=text.slice(0,300); d.noteDone=true; }
+    else if(d.wait==='person'){ d.person=text.slice(0,60); }
+    else if(d.wait==='saved'){ const p=tgParse_(text); if(!p||p.amount>d.amount) return tgSend_(chat,'Напиши число от 0 до '+fmt_(d.amount,d.cur)); d.saved=p.amount; d.savedDone=true; }
+    d.wait=''; d.msg=null; return tgNext_(chat,d);
+  }
+  const p=tgParse_(text);
+  if(!p) return tgSend_(chat,'Не понял 🙂 Начни с суммы: <b>2000</b>, <b>50$</b>, <b>+300$ зарплата</b>.');
+  return tgNext_(chat,{amount:p.amount, cur:p.cur, type:p.type, note:p.note, noteDone:!!p.note});
+}
+
+function tgIcon_(kind,n){ const def=kind==='accounts'?ACCOUNTS:kind==='incomeCategories'?INCOME_CATEGORIES:CATEGORIES; const x=items_(kind,def).find(i=>i.n===n); return x?x.i:'•'; }
+function tgHead_(d){
+  const p=['<b>'+(d.cur?fmt_(d.amount,d.cur):(String(d.amount).replace('.',',')+' ?'))+'</b>'];
+  if(d.type&&TG_TYPES[d.type]) p.push(TG_TYPES[d.type]);
+  if(d.person) p.push('👤 '+esc_(d.person));
+  if(d.type==='save'&&d.fromDone) p.push(d.from==='savings'?'из отложенных':'в отложенные');
+  if(d.catDone&&d.category) p.push(esc_(tgIcon_(d.type==='income'?'incomeCategories':'categories',d.category)+' '+d.category));
+  if(d.accDone&&d.account) p.push(esc_(tgIcon_('accounts',d.account)+' '+d.account));
+  if(d.savedDone&&d.saved) p.push('отложил '+fmt_(d.saved,d.cur));
+  if(d.note) p.push('💬 '+esc_(d.note));
+  return p.join(' · ');
+}
+function tgRows_(btns,per){ const rows=[]; for(let i=0;i<btns.length;i+=per) rows.push(btns.slice(i,i+per)); return rows; }
+function B_(text,data){ return {text:text,callback_data:data}; }
+
+// Следующий вопрос; когда всё выбрано — записываем
+function tgNext_(chat,d){
+  const cancel=[B_('✖️ Отмена','x')];
+  const show=(q,rows)=>{ const text=tgHead_(d)+'\n\n'+q, mk={inline_keyboard:rows.concat([cancel])};
+    if(d.msg) tgEdit_(chat,d.msg,text,mk); else { const r=tgSend_(chat,text,mk); d.msg=r&&r.message_id; } tgSave_(chat,d); };
+  if(!d.cur) return show('Какая валюта?',[[B_('֏ Драмы','c:AMD'),B_('$ Доллары','c:USD')]]);
+  if(!d.type) return show('Что это?',[[B_(TG_TYPES.out,'t:out'),B_(TG_TYPES.income,'t:income')],[B_(TG_TYPES.save,'t:save'),B_('🤝 Долг','t:debt')]]);
+  if(d.type==='debt') return show('Какой долг?',[[B_('🤝 Дал в долг','t:lend'),B_('🤝 Мне вернули','t:lendBack')],[B_('🧾 Взял в долг','t:borrow'),B_('🧾 Я вернул','t:repay')]]);
+  if(DEBT_TYPES.indexOf(d.type)>=0&&!d.person){
+    const ppl=tgPeople_(d.type).slice(0,8); d.people=ppl;
+    return show('С кем?',tgRows_(ppl.map((n,i)=>B_('👤 '+n,'p:'+i)),2).concat([[B_('✍️ Написать имя','P')]]));
+  }
+  if(d.type==='save'&&!d.fromDone) return show('Куда?',[[B_('🐖 В отложенные','f:income'),B_('↩️ Достать из отложенных','f:savings')]]);
+  if((d.type==='income'||d.type==='out')&&!d.catDone){
+    const inc=d.type==='income', list=items_(inc?'incomeCategories':'categories',inc?INCOME_CATEGORIES:CATEGORIES);
+    return show(inc?'Откуда доход?':'На что?',tgRows_(list.map((c,i)=>B_(c.i+' '+c.n,'k:'+i)),2).concat([[B_('— Без категории','k:-')]]));
+  }
+  if(d.type!=='save'&&!d.accDone){
+    const accs=items_('accounts',ACCOUNTS);
+    if(accs.length===1){ d.account=accs[0].n; d.accDone=true; return tgNext_(chat,d); }
+    const incoming=d.type==='income'||d.type==='lendBack'||d.type==='borrow';
+    return show(incoming?'Куда пришло?':'Откуда платил?',tgRows_(accs.map((a,i)=>B_(a.i+' '+a.n,'a:'+i)),2));
+  }
+  if(d.type==='income'&&!d.savedDone) return show('Сколько из этого отложил?',[[B_('Ничего','s:0'),B_('25%','s:25'),B_('50%','s:50'),B_('Всё','s:100')],[B_('✍️ Своя сумма','S')]]);
+  if(!d.noteDone){ d.wait='note'; return show('Комментарий? Напиши его сообщением (на любом языке) или нажми:',[[B_('Без комментария','n:-')]]); }
+  return tgCommit_(chat,d);
+}
+function tgPeople_(type){
+  const L=ledger_(getState_().entries), list=[];
+  Object.keys(L.D).forEach(k=>{ const p=L.D[k], open=type==='lendBack'?(p.USD.lent>0||p.AMD.lent>0):type==='repay'?(p.USD.owe>0||p.AMD.owe>0):true; if(open) list.push({n:p.name,last:p.last}); });
+  return list.sort((a,b)=>b.last.localeCompare(a.last)).map(x=>x.n);
+}
+function tgCallback_(q){
+  const chat=String(q.message&&q.message.chat&&q.message.chat.id), data=String(q.data||''), mid=q.message&&q.message.message_id;
+  try{ tgCall_('answerCallbackQuery',{callback_query_id:q.id}); }catch(err){}
+  if(chat!==cfg_('tgChat')) return;
+  if(data.indexOf('u:')===0) return tgUndo_(chat,data.slice(2),mid);
+  const d=tgDraft_(chat);
+  if(!d||d.msg!==mid) return tgEdit_(chat,mid,'⌛ Эта запись устарела — напиши сумму заново.');
+  const k=data.split(':')[0], v=data.split(':')[1];
+  if(k==='x'){ tgSave_(chat,null); return tgEdit_(chat,mid,'✖️ Отменено'); }
+  if(k==='c') d.cur=v==='USD'?'USD':'AMD';
+  else if(k==='t') d.type=v;
+  else if(k==='p') d.person=(d.people||[])[+v]||'';
+  else if(k==='P'){ d.wait='person'; tgSave_(chat,d); return tgEdit_(chat,mid,tgHead_(d)+'\n\nНапиши имя сообщением:',{inline_keyboard:[[B_('✖️ Отмена','x')]]}); }
+  else if(k==='f'){ d.from=v; d.fromDone=true; }
+  else if(k==='k'){ const inc=d.type==='income', list=items_(inc?'incomeCategories':'categories',inc?INCOME_CATEGORIES:CATEGORIES); d.category=v==='-'?'':((list[+v]||{}).n||''); d.catDone=true; }
+  else if(k==='a'){ const a=items_('accounts',ACCOUNTS)[+v]; d.account=a?a.n:''; d.accDone=true; }
+  else if(k==='s'){ d.saved=Math.round(d.amount*(+v))/100; d.savedDone=true; }
+  else if(k==='S'){ d.wait='saved'; tgSave_(chat,d); return tgEdit_(chat,mid,tgHead_(d)+'\n\nСколько отложил? Напиши число:',{inline_keyboard:[[B_('✖️ Отмена','x')]]}); }
+  else if(k==='n'){ d.note=''; d.noteDone=true; d.wait=''; }
+  return tgNext_(chat,d);
+}
+function tgCommit_(chat,d){
+  try{
+    const e={id:Utilities.getUuid(), type:d.type, cur:d.cur, date:today_(), amount:d.amount, saved:d.saved||0,
+      from:d.from||'income', category:d.category||'', note:d.note||'', account:d.type==='save'?'':(d.account||''), person:d.person||'', rate:rate_()};
+    addEntry_(e); tgSave_(chat,null); setCfg_('tgLast',e.id);
+    const B=ledger_(getState_().entries).B[d.cur];
+    tgEdit_(chat,d.msg,'✅ '+tgHead_(d)+'\n\n<i>свободно '+fmt_(B.free,d.cur)+' · отложено '+fmt_(B.saved,d.cur)+'</i>',{inline_keyboard:[[B_('↩️ Отменить','u:'+e.id)]]});
+  }catch(err){ tgSave_(chat,null); tgEdit_(chat,d.msg,'⚠️ Не записалось: '+esc_(err.message)); }
+}
+function tgUndo_(chat,id,msg){
+  if(!id) return tgSend_(chat,'Нечего отменять.');
+  try{ deleteEntry_(id); if(cfg_('tgLast')===id) setCfg_('tgLast',null); }
+  catch(err){ return msg?tgEdit_(chat,msg,'Уже удалено или не найдено.'):tgSend_(chat,'Уже удалено или не найдено.'); }
+  return msg?tgEdit_(chat,msg,'↩️ Отменено — запись удалена.'):tgSend_(chat,'↩️ Последняя запись удалена.');
+}
+
+// ---------- баланс и отчёты ----------
+function ledger_(entries){
+  const B={USD:{free:0,saved:0},AMD:{free:0,saved:0}}, A={}, D={};
+  const acc=(n,c,v)=>{ A[n]=A[n]||{USD:0,AMD:0}; A[n][c]+=v; }, bk=(c,sv,v)=>{ B[c][sv?'saved':'free']+=v; };
+  const debt=(p,c,k,v,date)=>{ const key=String(p).trim().toLowerCase(); D[key]=D[key]||{name:String(p).trim(),USD:{lent:0,owe:0},AMD:{lent:0,owe:0},last:''}; D[key][c][k]+=v; if(date>D[key].last) D[key].last=date; };
+  entries.forEach(e=>{ const a=e.amount, c=e.cur, n=e.account||'', sv=e.from==='savings';
+    switch(e.type){
+      case 'income': acc(n,c,a); B[c].saved+=e.saved||0; B[c].free+=a-(e.saved||0); break;
+      case 'out': acc(n,c,-a); bk(c,sv,-a); break;
+      case 'save': bk(c,!sv,a); bk(c,sv,-a); break;
+      case 'transfer': { const t=e.to||{}; acc(n,c,-a); acc(t.account||'',t.cur||c,t.amount||a); bk(c,sv,-a); bk(t.cur||c,sv,t.amount||a); break; }
+      case 'lend': acc(n,c,-a); bk(c,sv,-a); debt(e.person||'?',c,'lent',a,e.date); break;
+      case 'lendBack': acc(n,c,a); bk(c,sv,a); debt(e.person||'?',c,'lent',-a,e.date); break;
+      case 'borrow': acc(n,c,a); bk(c,sv,a); debt(e.person||'?',c,'owe',a,e.date); break;
+      case 'repay': acc(n,c,-a); bk(c,sv,-a); debt(e.person||'?',c,'owe',-a,e.date); break; } });
+  return {B:B,A:A,D:D};
+}
+function both_(usd,amd){
+  const r=rate_(); if(!(r>0)) return [usd?fmt_(usd,'USD'):'',amd?fmt_(amd,'AMD'):''].filter(Boolean).join(' + ')||fmt_(0,'AMD');
+  return fmt_(amd+usd*r,'AMD')+' ≈ '+fmt_(usd+amd/r,'USD');
+}
+function tgBalance_(chat){
+  const st=getState_(), L=ledger_(st.entries), B=L.B, lines=[];
+  lines.push('💼 <b>Всего: '+both_(B.USD.free+B.USD.saved,B.AMD.free+B.AMD.saved)+'</b>');
+  lines.push('Свободно: '+both_(B.USD.free,B.AMD.free));
+  lines.push('Отложено: '+both_(B.USD.saved,B.AMD.saved));
+  lines.push('');
+  st.accounts.forEach(a=>{ const v=L.A[a.n]; if(v&&(Math.round(v.USD*100)||Math.round(v.AMD))) lines.push(a.i+' '+esc_(a.n)+': '+[v.USD?fmt_(v.USD,'USD'):'',v.AMD?fmt_(v.AMD,'AMD'):''].filter(Boolean).join(' · ')); });
+  const rec={USD:0,AMD:0}, pay={USD:0,AMD:0};
+  Object.keys(L.D).forEach(k=>{ ['USD','AMD'].forEach(c=>{ const x=L.D[k][c]; if(x.lent>0) rec[c]+=x.lent; if(x.owe>0) pay[c]+=x.owe; }); });
+  if(rec.USD||rec.AMD) lines.push('🤝 Тебе должны: '+both_(rec.USD,rec.AMD));
+  if(pay.USD||pay.AMD) lines.push('🧾 Ты должен: '+both_(pay.USD,pay.AMD));
+  if(st.goal){ const r=rate_(), gc=st.goal.cur, sv=gc==='USD'?B.USD.saved+(r>0?B.AMD.saved/r:0):B.AMD.saved+B.USD.saved*r;
+    lines.push('', '🎯 '+esc_(st.goal.title)+': <b>'+Math.round(Math.max(0,sv)/st.goal.amount*100)+'%</b> ('+fmt_(sv,gc)+' из '+fmt_(st.goal.amount,gc)+')'); }
+  return tgSend_(chat,lines.join('\n'));
+}
+function tgReport_(chat,days,auto){
+  const st=getState_(), tz=book_().getSpreadsheetTimeZone(), r=rate_();
+  const since=Utilities.formatDate(new Date(Date.now()-(days-1)*864e5),tz,'yyyy-MM-dd');
+  const list=st.entries.filter(e=>e.date>=since);
+  const toU=(e,v)=>e.cur==='USD'?v:((e.rate||r)>0?v/(e.rate||r):0);
+  let inc=0,out=0,sv=0; const cats={};
+  list.forEach(e=>{ const a=e.amount, s=e.from==='savings'; let dv=0;
+    if(e.type==='income') inc+=toU(e,a);
+    if(e.type==='out'){ out+=toU(e,a); const c=e.category||'Без категории'; cats[c]=(cats[c]||0)+toU(e,a); }
+    if(e.type==='income') dv=e.saved||0; else if(e.type==='save') dv=s?-a:a; else if(['out','lend','repay'].indexOf(e.type)>=0) dv=s?-a:0; else if(['lendBack','borrow'].indexOf(e.type)>=0) dv=s?a:0;
+    sv+=toU(e,dv); });
+  const two=v=>r>0?fmt_(v*r,'AMD')+' ≈ '+fmt_(v,'USD'):fmt_(v,'USD');
+  const lines=[(auto?'📅 <b>Итоги недели</b>':'📅 <b>За '+days+' дней</b>'),'','💰 Пришло: '+two(inc),'🧾 Ушло: '+two(out),'🐖 Отложил: '+two(sv)+(inc>0?' ('+Math.round(sv/inc*100)+'% дохода)':''),'📈 Итог: '+(inc-out>=0?'+':'')+two(inc-out)];
+  const top=Object.keys(cats).sort((a,b)=>cats[b]-cats[a]).slice(0,3);
+  if(top.length){ lines.push('','Больше всего ушло на:'); top.forEach(c=>lines.push(esc_(tgIcon_('categories',c)+' '+c)+' — '+two(cats[c])+' ('+Math.round(cats[c]/out*100)+'%)')); }
+  if(!list.length) lines.push('','Записей не было. Напиши сумму — запишу 🙂');
+  return tgSend_(chat,lines.join('\n'));
+}
+// Запускается сам по воскресеньям в 20:00 (триггер создаёт setup)
+function tgWeekly(){ const chat=cfg_('tgChat'); if(chat&&cfg_('tgWeekly')!=='0') tgReport_(chat,7,true); }
+function ensureWeeklyTrigger_(){
+  if(ScriptApp.getProjectTriggers().some(t=>t.getHandlerFunction()==='tgWeekly')) return;
+  ScriptApp.newTrigger('tgWeekly').timeBased().onWeekDay(ScriptApp.WeekDay.SUNDAY).atHour(20).inTimezone(book_().getSpreadsheetTimeZone()).create();
 }

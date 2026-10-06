@@ -133,7 +133,7 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
 <div id="login" hidden><form class="card" id="login-form"><div class="brand" style="margin-bottom:6px">$ ХАСЛ</div><p class="muted" style="margin:0 0 4px;font-size:14px">Вход в твой учёт</p>
  <label>Ссылка на мой скрипт (кончается на /exec)<input id="api" type="url" inputmode="url" autocomplete="url" placeholder="https://script.google.com/macros/s/…/exec" required></label>
  <label>Ключ входа<input id="key" autocomplete="current-password" type="password" required></label>
- <button class="primary" style="width:100%;margin-top:14px">Войти</button><div id="login-msg" class="muted" style="min-height:20px;margin-top:10px;font-size:13px"></div>
+ <button class="primary" style="width:100%;margin-top:14px">Войти</button><button type="button" class="ghost" id="login-cancel" style="width:100%;margin-top:6px" hidden>Отмена</button><div id="login-msg" class="muted" style="min-height:20px;margin-top:10px;font-size:13px"></div>
  <a href="setup.html" style="color:var(--gold);font-size:14px">Ещё нет своего? Как поставить за 5 минут →</a></form></div>
 
 <div id="app">
@@ -191,6 +191,7 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
   <div class="card"><h2>Моя цель</h2><div class="row"><input class="grow" id="g-title" maxlength="60" placeholder="На что копишь — напр. «Подушка»"></div>
    <div class="row" style="margin-top:8px"><input class="grow" id="g-amount" inputmode="decimal" placeholder="Сумма цели" style="margin:0"><div class="seg" id="g-cur"><button data-v="USD">$</button><button data-v="AMD">֏</button></div></div>
    <div class="row" style="margin-top:10px"><button class="primary grow" id="g-save">Сохранить цель</button><button class="ghost" id="g-clear">Убрать</button></div></div>
+  <div class="card" id="tg-card"><h2>Telegram-бот</h2><div id="tg"></div></div>
   <div class="card" id="set-accounts"><h2>Счета — где лежат деньги</h2><div class="chips" data-list="accounts"></div></div>
   <div class="card"><h2>Категории расходов</h2><div class="chips" data-list="categories"></div></div>
   <div class="card"><h2>Источники дохода</h2><div class="chips" data-list="incomeCategories"></div></div>
@@ -199,7 +200,7 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
   <div class="card"><a id="sheet-link" target="_blank" rel="noopener" style="color:var(--gold)">Общая таблица ↗</a><br>
    <a id="private-link" target="_blank" rel="noopener" style="color:var(--gold);display:inline-block;margin-top:8px">Мой личный журнал ↗</a>
    <p class="muted" style="font-size:13px;margin:10px 0 0">Во «Ввод» идут только дата, имя и суммы в $: доходы и всё, что меняет отложенное. Комментарии, категории, счета и долги — только в личном журнале на твоём Google Диске.</p>
-   <button class="ghost" id="logout" style="margin-top:8px;padding-left:0">Выйти на этом устройстве</button></div>
+   <div class="row" style="margin-top:8px"><button class="ghost" id="switch-api" style="padding-left:0">Перенести на другой скрипт</button><button class="ghost" id="logout">Выйти на этом устройстве</button></div></div>
  </section>
 </div>
 
@@ -284,6 +285,7 @@ function applyOp(st,op){const a=op.args[0];st={...st,entries:st.entries.slice()}
  else if(op.fn==='setGoal')st.goal=a;
  else if(op.fn==='setAccounts')st.accounts=a;
  else if(op.fn==='setCategories')st[op.args[1]==='income'?'incomeCategories':'categories']=a;
+ else if(op.fn==='tgSettings')st.telegram={...(st.telegram||{}),...a};
  return st}
 function show(){S.state=BASE?OUTBOX.reduce(applyOp,BASE):null;if(S.state)render()}
 function setBase(st){BASE=st;LS.set('hustle-state',st)}
@@ -297,9 +299,18 @@ async function refresh(){if(S.busy||flushing||!KEY)return;if(OUTBOX.length)retur
 function statusText(){const t=BASE?new Date(BASE.updated).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}):'';
  if(OUTBOX.length)return '⏳ '+OUTBOX.length;return S.offline?'офлайн':'✓ '+t}
 function showLogin(msg){$('login').hidden=false;if(!$('api').value)$('api').value=API;$('login-msg').textContent=msg||'';setTimeout(()=>($('api').value?$('key'):$('api')).focus(),50)}
+let SWITCH=null;   // смена скрипта: помним прежние адрес, ключ и состояние
+$('switch-api').onclick=()=>{SWITCH={api:API,key:KEY,base:BASE};$('api').value='';$('key').value='';$('login-cancel').hidden=false;showLogin('Вставь ссылку /exec нового скрипта и его ключ. Курс, счета, категории и цель перенесу.')};
+$('login-cancel').onclick=()=>{if(SWITCH){API=SWITCH.api;KEY=SWITCH.key;SWITCH=null}$('login-cancel').hidden=true;$('login').hidden=true};
 $('login-form').onsubmit=async ev=>{ev.preventDefault();const api=$('api').value.trim();if(!API_RE.test(api)){$('login-msg').textContent='Ссылка должна быть вида https://script.google.com/macros/s/…/exec';return}
- API=api;KEY=$('key').value.trim();$('login-msg').textContent='Проверяю…';
- try{setBase(await rpc('getState'));try{localStorage.setItem('hustle-key',KEY);localStorage.setItem('hustle-api',API)}catch{}$('login').hidden=true;$('key').value='';show();loadRates(false);flush()}catch(err){$('login-msg').textContent=err.message}};
+ const oldApi=API,oldKey=KEY;API=api;KEY=$('key').value.trim();$('login-msg').textContent='Проверяю…';
+ try{const st=await rpc('getState');const prev=SWITCH&&SWITCH.api!==api?SWITCH.base:null;
+  if(prev){$('login-msg').textContent='Переношу настройки…';
+   if(prev.rate>0&&st.rate!==prev.rate)await rpc('setRate',prev.rate);
+   if(prev.accounts)await rpc('setAccounts',prev.accounts);if(prev.categories)await rpc('setCategories',prev.categories,'out');if(prev.incomeCategories)await rpc('setCategories',prev.incomeCategories,'income');
+   if(prev.goal&&!st.goal)await rpc('setGoal',prev.goal);setBase(await rpc('getState'))}else setBase(st);
+  SWITCH=null;$('login-cancel').hidden=true;try{localStorage.setItem('hustle-key',KEY);localStorage.setItem('hustle-api',API)}catch{}$('login').hidden=true;$('key').value='';show();loadRates(false);flush();if(prev)note('Готово: теперь ты на новом скрипте')}
+ catch(err){if(SWITCH){API=oldApi;KEY=oldKey}$('login-msg').textContent=err.message}};
 $('logout').onclick=()=>{if(OUTBOX.length&&!confirm('Есть неотправленные записи ('+OUTBOX.length+'). Всё равно выйти?'))return;if(!confirm('Выйти на этом устройстве?'))return;try{['hustle-key','hustle-api','hustle-state','hustle-outbox','hustle-rates'].forEach(k=>localStorage.removeItem(k))}catch{}location.reload()};
 
 // ================= модель =================
@@ -573,7 +584,24 @@ function renderSettings(){const st=S.state;if(document.activeElement!==$('rate')
   const add=el('button','chip','＋ Добавить');add.type='button';add.onclick=()=>openPick(k);box.append(add)});
  const sg=st.shared;if(sg&&sg.goal>0){$('goal-card').hidden=false;$('goal-text').textContent=fmt(sg.saved,'USD')+' из '+fmt(sg.goal,'USD');$('goal-left').textContent='осталось '+fmt(Math.max(sg.goal-sg.saved,0),'USD');$('goal-bar').style.width=Math.min(100,Math.max(0,sg.saved/sg.goal*100))+'%';
   $('goal-mine').textContent='Твой вклад: '+fmt(sg.mine||0,'USD')+' · '+(sg.saved>0?Math.round((sg.mine||0)/sg.saved*100):0)+'% от общего'}else $('goal-card').hidden=true;
- $('sheet-link').href=st.url||'#';$('private-link').href=st.privateUrl||'#';$('private-link').hidden=!st.privateUrl}
+ $('sheet-link').href=st.url||'#';$('private-link').href=st.privateUrl||'#';$('private-link').hidden=!st.privateUrl;renderTg()}
+function renderTg(){const box=$('tg'),t=(S.state&&S.state.telegram)||{};box.replaceChildren();
+ const p=(txt,cls)=>{const x=el('p',cls||'muted',txt);x.style.cssText='margin:6px 0;font-size:14px';box.append(x);return x};
+ const btn=(txt,cls,fn)=>{const b=el('button',cls,txt);b.type='button';b.onclick=fn;return b};
+ const link=(txt,href)=>{const a=el('a','',txt);a.href=href;a.target='_blank';a.rel='noopener';a.style.cssText='display:inline-block;margin-top:8px;padding:11px 16px;border-radius:12px;background:var(--gold);color:var(--gold-ink);font-weight:650;text-decoration:none';return a};
+ const busy=async(fn,args,ok)=>{if(S.offline||!navigator.onLine)return note('Нужен интернет',true);try{note('Подключаю…');setBase(await rpc(fn,...args));show();note(ok)}catch(err){note(err.message,true)}};
+ if(!t.bot){p('Пишешь боту сумму — дальше выбираешь кнопками валюту, что это, категорию, счёт и комментарий. Запись сразу появляется здесь и в таблице.');
+  const ol=el('ol','muted');ol.style.cssText='margin:6px 0 0;padding-left:18px;font-size:14px';
+  for(const li of ['Открой @BotFather в Telegram → /newbot','Придумай имя и username (кончается на bot)','Скопируй токен (длинная строка с двоеточием) и вставь ниже']){ol.append(el('li',null,li))}box.append(ol);
+  const a=el('a','link','Открыть @BotFather ↗');a.href='https://t.me/BotFather';a.target='_blank';a.rel='noopener';a.style.display='inline-block';a.style.marginTop='6px';box.append(a);
+  const row=el('div','row');row.style.marginTop='10px';const inp=el('input','grow');inp.type='password';inp.placeholder='Токен бота';inp.autocomplete='off';inp.style.margin='0';
+  row.append(inp,btn('Подключить','primary',()=>{const v=inp.value.trim();if(!v)return note('Вставь токен',true);busy('tgConnect',[v,API],'Бот подключён — открой его и нажми Start')}));box.append(row);return}
+ if(!t.bound){p('Бот @'+t.bot+' подключён. Последний шаг — открой его и нажми «Start», так он узнает, что это ты:','');box.append(link('Открыть @'+t.bot+' →','https://t.me/'+t.bot+'?start='+t.code));
+  const r=el('div','row');r.style.marginTop='10px';r.append(btn('Я нажал Start — проверить','',()=>refresh()),btn('Отключить','ghost',()=>{if(confirm('Отключить бота?'))busy('tgDisconnect',[],'Бот отключён')}));box.append(r);return}
+ p('✅ @'+t.bot+' работает. Напиши ему сумму: 2000, 50$, +300$, 2к шаурма.','');box.append(link('Открыть бота →','https://t.me/'+t.bot));
+ const lab=el('label');lab.style.cssText='display:flex;align-items:center;gap:10px;margin-top:14px;color:var(--text);font-size:14px';const cb=el('input');cb.type='checkbox';cb.checked=t.weekly!==false;cb.style.cssText='width:20px;height:20px;margin:0';
+ cb.onchange=()=>call('tgSettings',{weekly:cb.checked});lab.append(cb,el('span',null,'Отчёт за неделю по воскресеньям в 20:00'));box.append(lab);
+ const off=btn('Отключить бота','ghost',()=>{if(confirm('Отключить бота? Записи останутся.'))busy('tgDisconnect',[],'Бот отключён')});off.style.cssText='margin-top:8px;padding-left:0';box.append(off)}
 $('rate-save').onclick=()=>{let r;try{r=parse($('rate').value)}catch(err){return note(err.message,true)}call('setRate',r);note('Курс сохранён: 1 $ = '+fmt(r,'AMD'))};
 $('g-save').onclick=()=>{let a;try{a=parse($('g-amount').value)}catch(err){return note(err.message,true)}const g={title:$('g-title').value.trim()||'Моя цель',amount:a,cur:S.goalCur||(S.state.goal?S.state.goal.cur:S.disp)};call('setGoal',g);note('Цель сохранена 🎯');go('home')};
 $('g-clear').onclick=()=>{if(confirm('Убрать цель?')){call('setGoal',null);S.goalCur=null}};
