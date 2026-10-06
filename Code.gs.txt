@@ -557,7 +557,7 @@ function tgNext_(chat,d){
 }
 function tgPeople_(type){
   const L=ledger_(getState_().entries), list=[];
-  Object.keys(L.D).forEach(k=>{ const p=L.D[k], open=type==='lendBack'?(p.USD.lent>0||p.AMD.lent>0):type==='repay'?(p.USD.owe>0||p.AMD.owe>0):true; if(open) list.push({n:p.name,last:p.last}); });
+  Object.keys(L.D).forEach(k=>{ const p=L.D[k], open=type==='lendBack'?uni_(p.USD.lent,p.AMD.lent,'USD')>0.05:type==='repay'?uni_(p.USD.owe,p.AMD.owe,'USD')>0.05:true; if(open) list.push({n:p.name,last:p.last}); });
   return list.sort((a,b)=>b.last.localeCompare(a.last)).map(x=>x.n);
 }
 function tgCallback_(q){
@@ -586,8 +586,8 @@ function tgCommit_(chat,d){
     const e={id:Utilities.getUuid(), type:d.type, cur:d.cur, date:today_(), amount:d.amount, saved:d.saved||0,
       from:d.from||'income', category:d.category||'', note:d.note||'', account:d.type==='save'?'':(d.account||''), person:d.person||'', rate:rate_()};
     addEntry_(e); tgSave_(chat,null); setCfg_('tgLast',e.id);
-    const B=ledger_(getState_().entries).B[d.cur];
-    tgEdit_(chat,d.msg,'✅ '+tgHead_(d)+'\n\n<i>свободно '+fmt_(B.free,d.cur)+' · отложено '+fmt_(B.saved,d.cur)+'</i>',{inline_keyboard:[[B_('↩️ Отменить','u:'+e.id)]]});
+    const B=ledger_(getState_().entries).B;
+    tgEdit_(chat,d.msg,'✅ '+tgHead_(d)+'\n\n<i>свободно '+fmt_(uni_(B.USD.free,B.AMD.free,d.cur),d.cur)+' · отложено '+fmt_(uni_(B.USD.saved,B.AMD.saved,d.cur),d.cur)+'</i>',{inline_keyboard:[[B_('↩️ Отменить','u:'+e.id)]]});
   }catch(err){ tgSave_(chat,null); tgEdit_(chat,d.msg,'⚠️ Не записалось: '+esc_(err.message)); }
 }
 function tgUndo_(chat,id,msg){
@@ -614,6 +614,8 @@ function ledger_(entries){
       case 'repay': acc(n,c,-a); bk(c,sv,-a); debt(e.person||'?',c,'owe',-a,e.date); break; } });
   return {B:B,A:A,D:D};
 }
+// деньги — один котёл: пара {USD,AMD} → одна сумма в валюте cur по текущему курсу
+function uni_(usd,amd,cur){ const r=rate_(); if(!(r>0)) return cur==='USD'?usd:amd; return cur==='USD'?usd+amd/r:amd+usd*r; }
 function both_(usd,amd){
   const r=rate_(); if(!(r>0)) return [usd?fmt_(usd,'USD'):'',amd?fmt_(amd,'AMD'):''].filter(Boolean).join(' + ')||fmt_(0,'AMD');
   return fmt_(amd+usd*r,'AMD')+' ≈ '+fmt_(usd+amd/r,'USD');
@@ -624,9 +626,9 @@ function tgBalance_(chat){
   lines.push('Свободно: '+both_(B.USD.free,B.AMD.free));
   lines.push('Отложено: '+both_(B.USD.saved,B.AMD.saved));
   lines.push('');
-  st.accounts.forEach(a=>{ const v=L.A[a.n]; if(v&&(Math.round(v.USD*100)||Math.round(v.AMD))) lines.push(a.i+' '+esc_(a.n)+': '+[v.USD?fmt_(v.USD,'USD'):'',v.AMD?fmt_(v.AMD,'AMD'):''].filter(Boolean).join(' · ')); });
+  st.accounts.forEach(a=>{ const v=L.A[a.n]; if(v&&Math.abs(uni_(v.USD,v.AMD,'USD'))>0.004) lines.push(a.i+' '+esc_(a.n)+': '+both_(v.USD,v.AMD)); });
   const rec={USD:0,AMD:0}, pay={USD:0,AMD:0};
-  Object.keys(L.D).forEach(k=>{ ['USD','AMD'].forEach(c=>{ const x=L.D[k][c]; if(x.lent>0) rec[c]+=x.lent; if(x.owe>0) pay[c]+=x.owe; }); });
+  Object.keys(L.D).forEach(k=>{ const x=L.D[k], l=uni_(x.USD.lent,x.AMD.lent,'USD'), o=uni_(x.USD.owe,x.AMD.owe,'USD'); if(l>0.05) rec.USD+=l; if(o>0.05) pay.USD+=o; });
   if(rec.USD||rec.AMD) lines.push('🤝 Тебе должны: '+both_(rec.USD,rec.AMD));
   if(pay.USD||pay.AMD) lines.push('🧾 Ты должен: '+both_(pay.USD,pay.AMD));
   if(st.goal){ const r=rate_(), gc=st.goal.cur, sv=gc==='USD'?B.USD.saved+(r>0?B.AMD.saved/r:0):B.AMD.saved+B.USD.saved*r;
