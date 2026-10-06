@@ -20,7 +20,7 @@ const INPUT = 'Ввод', FIRST = 4, LAST = 300;          // как в Dashboard
 const LOG = 'Хасл · журнал';
 const PRIVATE_NAME = 'Хасл · '+ME+' · личное';
 const LEGACY_LOG = 'Alld · Хасл';                     // так журнал назывался в первой версии
-const HEAD = ['ID','Дата','Тип','Валюта','Сумма','Отложено','Откуда','Категория','Комментарий','Курс','Счёт','Кто','Куда: счёт','Куда: валюта','Куда: сумма'];
+const HEAD = ['ID','Дата','Тип','Валюта','Сумма','Отложено','Откуда','Категория','Комментарий','Курс','Счёт','Кто','Куда: счёт','Куда: валюта','Куда: сумма','Разбивка по счетам'];
 const TYPES = {income:'Доход', save:'Отложил', out:'Расход', transfer:'Перевод', lend:'Дал в долг', lendBack:'Вернули мне', borrow:'Взял в долг', repay:'Вернул долг'};
 const TYPE_ALIASES = {'Снял':'out'};                  // как тип назывался в прошлых версиях
 const FROM = {income:'Из дохода', savings:'Из отложений'};   // income = свободные деньги, savings = отложенные
@@ -148,6 +148,7 @@ function readLog_(sh,tz){
       cur:cur_(r[3]), amount:round_(r[4]), saved:round_(r[5]),
       from:keyOf_(FROM,r[6]), category:String(r[7]||''), note:String(r[8]||''), rate:round_(r[9]),
       account:String(r[10]||''), person:String(r[11]||''), src:'site'};
+    const sp=split_(r[15]); if(sp) e.split=sp;
     if(e.type==='transfer') e.to={account:String(r[12]||''), cur:cur_(r[13]), amount:round_(r[14])};
     return e;
   }).filter(Boolean);
@@ -162,7 +163,14 @@ function logRow_(sh,id){
 function logValues_(e,tz){
   const t=e.type==='transfer'&&e.to?e.to:null;
   return [e.id,date_(e.date,tz),TYPES[e.type],e.cur,e.amount,e.type==='income'?e.saved:'',FROM[e.from]||'',literal_(e.category),literal_(e.note),e.rate>0?e.rate:'',
-    literal_(e.account||''),literal_(e.person||''),t?literal_(t.account):'',t?t.cur:'',t?t.amount:''];
+    literal_(e.account||''),literal_(e.person||''),t?literal_(t.account):'',t?t.cur:'',t?t.amount:'',
+    e.split?JSON.stringify(e.split.map(p=>({a:p.account,v:p.amount}))):''];
+}
+// «Разбивка по счетам»: [{a:'Карта',v:60},{a:'Наличные',v:40}] → [{account,amount}]; null, если её нет
+function split_(v){
+  if(!v) return null;
+  try{ const x=JSON.parse(String(v)); if(Array.isArray(x)&&x.length>1) return x.map(p=>({account:String(p.a||''),amount:round_(p.v)})); }catch(err){}
+  return null;
 }
 
 // ---------- лист «Ввод» (общий, если ведёте вместе) ----------
@@ -316,6 +324,15 @@ function clean_(e,id,keepRate){
     category:e.type==='out'||e.type==='income'?s(e.category,40):'', note:s(e.note,300),
     account:e.type==='save'?'':s(e.account,40), person:DEBT_TYPES.indexOf(e.type)>=0?s(e.person,60):''};
   if(DEBT_TYPES.indexOf(e.type)>=0&&!c.person) throw Error('Укажи, с кем долг');
+  if(Array.isArray(e.split)&&e.type!=='save'&&e.type!=='transfer'){          // часть на карту, часть наличными…
+    const parts={}; e.split.forEach(p=>{ const a=s(p&&p.account,40), v=round_(p&&p.amount); if(v>0) parts[a]=round_((parts[a]||0)+v); });
+    const list=Object.keys(parts).map(a=>({account:a,amount:parts[a]}));
+    if(list.length>1){
+      const sum=round_(list.reduce((x,p)=>x+p.amount,0));
+      if(Math.abs(sum-amount)>0.009) throw Error('Разбивка по счетам ('+sum+') не равна сумме ('+amount+')');
+      c.split=list; c.account=list[0].account;
+    } else if(list.length===1) c.account=list[0].account;
+  }
   if(e.type==='transfer'){
     const t=e.to||{}, ta=round_(t.amount), tc=t.cur==='AMD'?'AMD':t.cur==='USD'?'USD':'';
     if(!tc) throw Error('Перевод: выбери валюту, куда');
@@ -623,17 +640,18 @@ function tgUndo_(chat,id,msg){
 function ledger_(entries){
   const B={USD:{free:0,saved:0},AMD:{free:0,saved:0}}, A={}, D={};
   const acc=(n,c,v)=>{ A[n]=A[n]||{USD:0,AMD:0}; A[n][c]+=v; }, bk=(c,sv,v)=>{ B[c][sv?'saved':'free']+=v; };
+  const ax=(e,sg)=>{ if(e.split&&e.split.length) e.split.forEach(p=>acc(p.account||'',e.cur,sg*p.amount)); else acc(e.account||'',e.cur,sg*e.amount); };
   const debt=(p,c,k,v,date)=>{ const key=String(p).trim().toLowerCase(); D[key]=D[key]||{name:String(p).trim(),USD:{lent:0,owe:0},AMD:{lent:0,owe:0},last:''}; D[key][c][k]+=v; if(date>D[key].last) D[key].last=date; };
   entries.forEach(e=>{ const a=e.amount, c=e.cur, n=e.account||'', sv=e.from==='savings';
     switch(e.type){
-      case 'income': acc(n,c,a); B[c].saved+=e.saved||0; B[c].free+=a-(e.saved||0); break;
-      case 'out': acc(n,c,-a); bk(c,sv,-a); break;
+      case 'income': ax(e,1); B[c].saved+=e.saved||0; B[c].free+=a-(e.saved||0); break;
+      case 'out': ax(e,-1); bk(c,sv,-a); break;
       case 'save': bk(c,!sv,a); bk(c,sv,-a); break;
       case 'transfer': { const t=e.to||{}; acc(n,c,-a); acc(t.account||'',t.cur||c,t.amount||a); bk(c,sv,-a); bk(t.cur||c,sv,t.amount||a); break; }
-      case 'lend': acc(n,c,-a); bk(c,sv,-a); debt(e.person||'?',c,'lent',a,e.date); break;
-      case 'lendBack': acc(n,c,a); bk(c,sv,a); debt(e.person||'?',c,'lent',-a,e.date); break;
-      case 'borrow': acc(n,c,a); bk(c,sv,a); debt(e.person||'?',c,'owe',a,e.date); break;
-      case 'repay': acc(n,c,-a); bk(c,sv,-a); debt(e.person||'?',c,'owe',-a,e.date); break; } });
+      case 'lend': ax(e,-1); bk(c,sv,-a); debt(e.person||'?',c,'lent',a,e.date); break;
+      case 'lendBack': ax(e,1); bk(c,sv,a); debt(e.person||'?',c,'lent',-a,e.date); break;
+      case 'borrow': ax(e,1); bk(c,sv,a); debt(e.person||'?',c,'owe',a,e.date); break;
+      case 'repay': ax(e,-1); bk(c,sv,-a); debt(e.person||'?',c,'owe',-a,e.date); break; } });
   return {B:B,A:A,D:D};
 }
 // деньги — один котёл: пара {USD,AMD} → одна сумма в валюте cur по текущему курсу

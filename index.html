@@ -102,6 +102,10 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
 .chip.x{display:inline-flex;align-items:center;gap:4px;padding:5px 4px 5px 12px}.chip.x button{border:0;background:none;padding:2px 7px;color:var(--muted)}
 .emojis{display:grid;grid-template-columns:repeat(auto-fill,minmax(40px,1fr));gap:6px;margin-top:8px}
 .emojis button{padding:6px 0;font-size:20px;border-radius:10px}.emojis button.on{border-color:var(--gold);background:#e2bf7222}
+.split-row{display:grid;grid-template-columns:auto 1fr 120px;gap:10px;align-items:center;padding:6px 0;border-top:1px solid #ffffff0d}.split-row:first-child{border-top:0}
+.split-row input{margin:0;padding:9px 10px;text-align:right;font-variant-numeric:tabular-nums}
+#split-box{background:var(--field);border:1px solid var(--line);border-radius:12px;padding:6px 12px;margin-top:8px}
+.split-sum{font-size:13px;color:var(--muted);padding:6px 0 2px;text-align:right}
 .rate-box{background:var(--field);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:10px}
 .rate-box div{display:flex;justify-content:space-between;gap:8px}
 .flt{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:6px 6px 6px 12px;font-size:14px;margin-top:8px}
@@ -215,7 +219,8 @@ input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid v
   <div class="seg full" id="type-seg" style="margin-top:10px"><button data-v="income">Доход</button><button data-v="out">Расход</button><button data-v="save">Отложить</button><button data-v="transfer">Перевод</button><button data-v="debt">Долг</button></div>
   <div class="seg full sm" id="debt-seg" style="margin-top:8px"><button data-v="lend">Дал в долг</button><button data-v="lendBack">Мне вернули</button><button data-v="borrow">Взял в долг</button><button data-v="repay">Я вернул</button></div>
   <div id="f-person"><label>Кто<input id="person" list="people" maxlength="60" placeholder="Имя"></label><datalist id="people"></datalist></div>
-  <div id="f-acc"><label id="acc-label">Счёт</label><div class="chips" id="acc-chips"></div></div>
+  <div id="f-acc"><label id="acc-label">Счёт</label><div class="chips" id="acc-chips"></div><div id="split-box" hidden></div>
+   <button type="button" class="link" id="split-toggle" style="margin-top:8px;font-size:14px">⇄ Разделить по счетам</button></div>
   <div class="row" style="margin-top:12px;gap:8px"><input id="amount" class="amount grow" inputmode="decimal" placeholder="0" required style="margin:0">
    <div class="seg" id="cur-seg" style="align-self:stretch"><button data-v="USD">$</button><button data-v="AMD">֏</button></div></div>
   <div class="hint" id="hint"></div>
@@ -331,18 +336,19 @@ function catOf(kind,n){const list=items(kind==='in'?'incomeCategories':'categori
 function ledger(entries){
  const B={USD:{free:0,saved:0},AMD:{free:0,saved:0}},A=new Map(),D=new Map();
  const acc=(n,c,v)=>{if(!A.has(n))A.set(n,{USD:0,AMD:0});A.get(n)[c]+=v};
+ const ax=(e,sg)=>{if(e.split&&e.split.length)e.split.forEach(p=>acc(p.account||'',e.cur,sg*p.amount));else acc(e.account||'',e.cur,sg*e.amount)};   // разбивка: часть на карту, часть наличными
  const bucket=(c,sv,v)=>{B[c][sv?'saved':'free']+=v};
  const debt=(p,c,k,v,e)=>{const name=p.trim();const kk=name.toLowerCase();if(!D.has(kk))D.set(kk,{name,USD:{lent:0,owe:0},AMD:{lent:0,owe:0},list:[],last:''});const d=D.get(kk);d[c][k]+=v;d.list.push(e);if(e.date>d.last)d.last=e.date};
  for(const e of entries){const a=e.amount,c=e.cur,n=e.account||'',sv=fromSaved(e);
   switch(e.type){
-   case 'income':acc(n,c,a);B[c].saved+=e.saved||0;B[c].free+=a-(e.saved||0);break;
-   case 'out':acc(n,c,-a);bucket(c,sv,-a);break;
+   case 'income':ax(e,1);B[c].saved+=e.saved||0;B[c].free+=a-(e.saved||0);break;
+   case 'out':ax(e,-1);bucket(c,sv,-a);break;
    case 'save':bucket(c,!sv,a);bucket(c,sv,-a);break;
    case 'transfer':{const t=e.to||{};acc(n,c,-a);acc(t.account||'',t.cur||c,t.amount||a);bucket(c,sv,-a);bucket(t.cur||c,sv,t.amount||a);break}
-   case 'lend':acc(n,c,-a);bucket(c,sv,-a);debt(e.person||'?',c,'lent',a,e);break;
-   case 'lendBack':acc(n,c,a);bucket(c,sv,a);debt(e.person||'?',c,'lent',-a,e);break;
-   case 'borrow':acc(n,c,a);bucket(c,sv,a);debt(e.person||'?',c,'owe',a,e);break;
-   case 'repay':acc(n,c,-a);bucket(c,sv,-a);debt(e.person||'?',c,'owe',-a,e);break}}
+   case 'lend':ax(e,-1);bucket(c,sv,-a);debt(e.person||'?',c,'lent',a,e);break;
+   case 'lendBack':ax(e,1);bucket(c,sv,a);debt(e.person||'?',c,'lent',-a,e);break;
+   case 'borrow':ax(e,1);bucket(c,sv,a);debt(e.person||'?',c,'owe',a,e);break;
+   case 'repay':ax(e,-1);bucket(c,sv,-a);debt(e.person||'?',c,'owe',-a,e);break}}
  for(const c of ['USD','AMD']){B[c].free=r2(B[c].free);B[c].saved=r2(B[c].saved)}
  for(const v of A.values()){v.USD=r2(v.USD);v.AMD=r2(v.AMD)}
  for(const d of D.values())for(const c of ['USD','AMD']){d[c].lent=r2(d[c].lent);d[c].owe=r2(d[c].owe)}
@@ -375,6 +381,7 @@ function entryAmount(e){const a=e.amount,c=e.cur;switch(e.type){
  case 'save':return(fromSaved(e)?'⇠ ':'⇢ ')+fmt(a,c);case 'transfer':return fmt(a,c)+(e.to&&e.to.cur!==c?' → '+fmt(e.to.amount,e.to.cur):'')}return fmt(a,c)}
 function entrySub(e,withDate){const p=[];if(withDate)p.push(dmy(e.date));
  if(e.type==='transfer')p.push(accIcon(e.account)+' '+accName(e.account)+' → '+accIcon(e.to&&e.to.account)+' '+accName(e.to&&e.to.account));
+ else if(e.split&&e.split.length)p.push(e.split.map(x=>accIcon(x.account)+' '+accName(x.account)+' '+fmt(x.amount,e.cur)).join(' + '));
  else if(e.type!=='save'&&(e.account||e.src==='site'))p.push(accIcon(e.account)+' '+accName(e.account));
  if(e.type==='income'&&e.saved)p.push('отложил '+fmt(e.saved,e.cur));
  if((e.type==='out'||e.type==='lend'||e.type==='repay')&&fromSaved(e))p.push('из отложенных');
@@ -518,7 +525,7 @@ function donut(rows,total,kind){const ns='http://www.w3.org/2000/svg',s=document
  const t1=mk('text',{x:100,y:96,'text-anchor':'middle','font-size':13,fill:'#a9a397'});t1.textContent=kind==='out'?'ушло':'пришло';s.append(t1);
  const t2=mk('text',{x:100,y:118,'text-anchor':'middle','font-size':fmt(total,S.disp).length>11?16:19,'font-weight':700,fill:'#f1ebe0'});t2.textContent=fmt(total,S.disp);s.append(t2);return s}
 function renderByAcc(list){const kind=S.an.mode,type=kind==='out'?'out':'income',box=$('by-acc');box.replaceChildren();$('acc-title').textContent=kind==='out'?'С каких счетов платил':'На какие счета пришло';
- const m=new Map();let total=0;for(const e of list){if(e.type!==type)continue;const v=toDisp(e.amount,e.cur,rateOf(e));if(v==null)continue;m.set(e.account||'',(m.get(e.account||'')||0)+v);total+=v}
+ const m=new Map();let total=0;for(const e of list){if(e.type!==type)continue;const v=toDisp(e.amount,e.cur,rateOf(e));if(v==null)continue;const parts=e.split&&e.split.length?e.split.map(x=>[x.account||'',v*x.amount/e.amount]):[[e.account||'',v]];for(const [n,pv] of parts)m.set(n,(m.get(n)||0)+pv);total+=v}
  if(!m.size){box.append(el('div','empty','Нет данных за период'));return}
  const rows=[...m].sort((a,b)=>b[1]-a[1]),ul=el('ul','list');
  rows.forEach(([n,v])=>{const li=el('li','it');li.style.cursor='default';li.append(el('span','ico',accIcon(n)));const w=el('div','what');w.append(el('b',null,accName(n)));const bar=el('div','bar'),fi=el('div');fi.style.width=Math.max(2,v/rows[0][1]*100)+'%';fi.style.background=kind==='out'?'var(--out)':'var(--in)';bar.append(fi);w.append(bar);li.append(w);
@@ -564,14 +571,14 @@ function renderDebts(){const L=ledger(S.state.entries),people=[...L.D.values()],
 
 // ---------- история ----------
 function renderHist(){const h=S.hist;seg('ht-seg',h.type,v=>{S.hist.type=v;S.hist.limit=60;renderHist()});seg('hc-seg',h.cur,v=>{S.hist.cur=v;S.hist.limit=60;renderHist()});
- const sel=$('h-acc'),accs=[...new Set([...items('accounts').map(a=>a.n),...S.state.entries.flatMap(e=>[e.type==='save'?null:e.account||'',e.to?e.to.account||'':null]).filter(x=>x!=null)])];
+ const sel=$('h-acc'),accs=[...new Set([...items('accounts').map(a=>a.n),...S.state.entries.flatMap(e=>[e.type==='save'?null:e.account||'',e.to?e.to.account||'':null,...(e.split||[]).map(x=>x.account||'')]).filter(x=>x!=null)])];
  const all=el('option',null,'Все счета');all.value='*';sel.replaceChildren(all,...accs.map(n=>{const o=el('option',null,accIcon(n)+' '+accName(n));o.value=n;return o}));sel.value=h.acc==null?'*':h.acc;
  sel.onchange=()=>{S.hist.acc=sel.value==='*'?null:sel.value;S.hist.limit=60;renderHist()};
  const f=$('filters');f.replaceChildren();const chip=(txt,clear)=>{const x=el('div','flt');x.append(el('span',null,txt));const b=el('button','ghost','✕');b.type='button';b.onclick=clear;x.append(b);f.append(x)};
  if(h.cat!=null)chip('Категория: '+(h.cat||'без категории'),()=>{S.hist.cat=null;renderHist()});if(h.person)chip('Человек: '+h.person,()=>{S.hist.person=null;renderHist()});
  const q=h.q.trim().toLowerCase(),accSel=h.acc;
  const list=sorted().filter(e=>(h.type==='all'||(h.type==='debt'?DEBT.includes(e.type):e.type===h.type))&&(h.cur==='all'||e.cur===h.cur||(e.to&&e.to.cur===h.cur))
-  &&(accSel==null||(e.account||'')===accSel||(e.to&&(e.to.account||'')===accSel))&&(h.cat==null||(e.category||'')===h.cat)&&(!h.person||(e.person||'').toLowerCase()===h.person.toLowerCase())
+  &&(accSel==null||(e.account||'')===accSel||(e.to&&(e.to.account||'')===accSel)||(e.split||[]).some(x=>(x.account||'')===accSel))&&(h.cat==null||(e.category||'')===h.cat)&&(!h.person||(e.person||'').toLowerCase()===h.person.toLowerCase())
   &&(!q||[e.note,e.category,e.person,e.account,String(e.amount),entryTitle(e)].join(' ').toLowerCase().includes(q)));
  const box=$('hist');box.replaceChildren();if(!list.length){box.append(el('div','empty','Ничего не найдено'));$('more').hidden=true;return}
  let day='',ul=null;for(const e of list.slice(0,h.limit)){if(e.date!==day){day=e.date;const dl=list.filter(x=>x.date===day),fl=flows(dl,'all');
@@ -641,6 +648,7 @@ function openSheet(type,entry,preset){if(!S.state)return;
  F.type=e.type||type;F.cur=e.cur||F.cur||S.disp;F.from=e.from==='savings'?'savings':'income';F.cat=e.category||'';
  const accs=items('accounts').map(a=>a.n);F.acc=entry?(e.account||''):(lastAcc(F.type)&&accs.includes(lastAcc(F.type))?lastAcc(F.type):accs[0]||'');
  F.toAcc=e.to?e.to.account||'':(accs.find(a=>a!==F.acc)||accs[0]||'');F.toCur=e.to?e.to.cur:F.cur;F.toTouched=!!(e.to&&e.to.cur!==e.cur);
+ F.split=e.split&&e.split.length?Object.fromEntries(e.split.map(x=>[x.account||'',String(x.amount).replace('.',',')])):null;
  $('form-title').textContent=entry?(entry.src==='table'?'Изменить запись из таблицы':'Изменить запись'):'Новая запись';$('delete').hidden=!entry;
  $('amount').value=entry?String(e.amount).replace('.',','):'';$('saved').value=e.saved?String(e.saved).replace('.',','):'';$('note').value=e.note||'';$('date').value=e.date||today();
  $('to-amount').value=e.to?String(e.to.amount).replace('.',','):'';$('to-amount').dataset.manual=e.to?'1':'';$('person').value=e.person||(preset&&preset.person)||'';
@@ -666,15 +674,28 @@ function drawFormChips(){const F=S.f;
   if(addKind){const a=el('button','chip','＋');a.type='button';a.title='Добавить';a.onclick=()=>openPick(addKind);box.append(a)}};
  const accs=items('accounts').slice();if(F.acc&&!accs.some(a=>a.n===F.acc))accs.push({n:F.acc,i:accIcon(F.acc)});if(S.edit&&!F.acc)accs.push({n:'',i:'❔'});
  chips('acc-chips',accs.map(a=>({...a,n:a.n})),F.acc,n=>F.acc=n,'accounts');
+ const canSplit=F.type!=='save'&&F.type!=='transfer';$('split-toggle').hidden=!canSplit;if(!canSplit&&F.split){F.split=null;$('amount').readOnly=false}
+ $('acc-chips').hidden=!!F.split;$('split-box').hidden=!F.split;$('amount').readOnly=!!F.split;
+ $('split-toggle').textContent=F.split?'✕ Одним счётом':'⇄ Разделить по счетам (часть на карту, часть наличными…)';
+ if(F.split)drawSplit();
  const toAccs=items('accounts').slice();if(F.toAcc&&!toAccs.some(a=>a.n===F.toAcc))toAccs.push({n:F.toAcc,i:accIcon(F.toAcc)});chips('to-chips',toAccs,F.toAcc,n=>F.toAcc=n,'accounts');
  const kind=F.type==='income'?'incomeCategories':'categories',cats=items(kind).slice();if(F.cat&&!cats.some(c=>c.n===F.cat))cats.push({n:F.cat,i:'🏷️'});
  chips('cat-chips',cats,F.cat,n=>F.cat=F.cat===n?'':n,kind)}
+// разбивка суммы по счетам: сумма записи = сумма частей
+function drawSplit(){const F=S.f,box=$('split-box'),list=items('accounts').slice();for(const n of Object.keys(F.split))if(!list.some(a=>a.n===n))list.push({n,i:accIcon(n)});
+ box.replaceChildren(...list.map(a=>{const r=el('div','split-row');r.append(el('span','ico',a.i),el('span',null,a.n||'Не указан'));
+  const inp=el('input');inp.inputMode='decimal';inp.placeholder='0';inp.value=F.split[a.n]||'';inp.oninput=()=>{F.split[a.n]=inp.value;splitSum()};r.append(inp);return r}),el('div','split-sum'));splitSum()}
+function splitParts(){const F=S.f,parts=[];for(const [n,v] of Object.entries(F.split||{})){if(!String(v).trim())continue;const a=parse(v);parts.push({account:n,amount:a})}return parts}
+function splitSum(){const F=S.f;let sum=0,ok=true;try{sum=splitParts().reduce((s,p)=>s+p.amount,0)}catch{ok=false}
+ $('amount').value=sum?String(r2(sum)).replace('.',','):'';const box=$('split-box').querySelector('.split-sum');if(box)box.textContent=ok?'Итого: '+fmt(r2(sum),F.cur):'Проверь суммы';hint()}
+$('split-toggle').onclick=()=>{const F=S.f;if(F.split){const p=(()=>{try{return splitParts()}catch{return[]}})();F.split=null;if(p.length===1)F.acc=p[0].account;$('amount').readOnly=false}
+ else{F.split={};let a='';try{a=String(parse($('amount').value,true)||'')}catch{}if(F.acc!=null&&a&&a!=='0')F.split[F.acc]=a.replace('.',',')}drawFormChips();hint()};
 function autoTo(){const F=S.f;if(F.type!=='transfer')return;if(F.toCur===F.cur){$('to-amount').value=$('amount').value;$('to-amount').disabled=true;return}$('to-amount').disabled=false;
  if($('to-amount').dataset.manual==='1')return;let a=0;try{a=parse($('amount').value,true)}catch{}const v=conv(a,F.cur,F.toCur,rateNow());$('to-amount').value=a&&v!=null?String(r2(v)).replace('.',','):''}
 $('amount').oninput=()=>{autoTo();hint()};$('to-amount').oninput=()=>{$('to-amount').dataset.manual='1';hint()};
 function hint(){const st=S.state,F=S.f;if(!st)return;const L=ledger(st.entries.filter(e=>!S.edit||e.id!==S.edit.id)),r=(S.edit&&S.edit.rate)||rateNow(),p=[];
  let a=0;try{a=parse($('amount').value,true)}catch{}const o=OTHER[F.cur];if(a&&r>0)p.push('≈ '+fmt(conv(a,F.cur,o,r),o));
- if(['out','lend','repay','transfer'].includes(F.type)){p.push('на '+accIcon(F.acc)+' '+accName(F.acc)+': '+fmt(uAcc(L,F.acc,F.cur),F.cur));if(F.type!=='transfer')p.push((F.from==='savings'?'отложено ':'свободно ')+fmt(F.from==='savings'?uSaved(L,F.cur):uFree(L,F.cur),F.cur))}
+ if(['out','lend','repay','transfer'].includes(F.type)){if(!F.split)p.push('на '+accIcon(F.acc)+' '+accName(F.acc)+': '+fmt(uAcc(L,F.acc,F.cur),F.cur));if(F.type!=='transfer')p.push((F.from==='savings'?'отложено ':'свободно ')+fmt(F.from==='savings'?uSaved(L,F.cur):uFree(L,F.cur),F.cur))}
  if(F.type==='save')p.push(F.from==='savings'?'отложено '+fmt(uSaved(L,F.cur),F.cur):'свободно '+fmt(uFree(L,F.cur),F.cur));
  if(DEBT.includes(F.type)){const d=L.D.get(($('person').value||'').trim().toLowerCase());if(d){const v=uDebt(d,F.type==='lend'||F.type==='lendBack'?'lent':'owe',F.cur);if(Math.abs(v)>0.004)p.push((F.type==='lend'||F.type==='lendBack'?'сейчас должен тебе ':'сейчас ты должен ')+fmt(v,F.cur))}}
  if(!(r>0))p.push('нужен курс в ⚙');$('hint').textContent=p.join(' · ');
@@ -685,6 +706,7 @@ $('form').onsubmit=ev=>{ev.preventDefault();if(!S.state)return;const F=S.f,t=F.t
    category:t==='out'||t==='income'?F.cat:'',note:$('note').value.trim(),account:t==='save'?'':F.acc,person:DEBT.includes(t)?$('person').value.trim():'',rate:(S.edit&&S.edit.rate)||rateNow()};
   if(d.saved>d.amount)throw Error('Нельзя отложить больше дохода');if(!/^\d{4}-\d{2}-\d{2}$/.test(d.date))throw Error('Выбери дату');
   if(DEBT.includes(t)&&!d.person)throw Error('Напиши, с кем долг');
+  if(F.split&&t!=='save'&&t!=='transfer'){const parts=splitParts();if(!parts.length)throw Error('Впиши, сколько на какой счёт');d.amount=r2(parts.reduce((s,p)=>s+p.amount,0));d.account=parts[0].account;if(parts.length>1)d.split=parts;if(d.saved>d.amount)throw Error('Нельзя отложить больше дохода')}
   if(t==='transfer'){const ta=F.toCur===F.cur?d.amount:parse($('to-amount').value);if(F.toAcc===F.acc&&F.toCur===F.cur)throw Error('Откуда и куда совпадают');d.from=F.from;d.to={account:F.toAcc,cur:F.toCur,amount:ta}}
   if(d.cur==='AMD'||(d.to&&d.to.cur==='AMD')){if(!(d.rate>0))throw Error('Сначала поставь курс в ⚙ — драмы идут в таблицу в долларах')}}catch(err){return note(err.message,true)}
  const L=ledger(S.state.entries.filter(e=>!S.edit||e.id!==S.edit.id));
