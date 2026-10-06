@@ -334,7 +334,7 @@ function getState_(){
   const table=all.filter(r=>r.who===ME&&!(r.id&&ids.has(r.id))&&(r.income||r.saved)).map(r=>({
     id:'vvod-'+r.row, date:r.date, cur:'USD', src:'table', note:r.note, category:'', rate:0, account:'', person:'',
     type:r.income>0?'income':(r.saved<0?'out':'save'), amount:r.income>0?r.income:Math.abs(r.saved),
-    saved:r.income>0?r.saved:0, from:r.income<=0&&r.saved<0?'savings':''}));
+    saved:r.income>0?r.saved:0, from:r.income<=0&&r.saved<0?'savings':'', raw:{income:r.income, saved:r.saved}}));
   const dash=ss.getSheetByName('Dashboard'), mine=all.filter(r=>r.who===ME);
   let goal=null; try{ goal=JSON.parse(cfg_('goal')||'null'); }catch(err){}
   return {me:ME, entries:log.concat(table), rate:rate_(), goal,
@@ -352,7 +352,24 @@ function addEntry_(e){
     return getState_();
   });
 }
+// Строка, вписанная во «Ввод» руками (id «vvod-<номер строки>»). orig — что приложение видело в ней,
+// чтобы не задеть чужую строку, если таблицу за это время поменяли или сдвинули.
+function tableRow_(id,orig,tz){
+  const row=Number(String(id).slice(5)), sh=input_();
+  if(!(row>=FIRST&&row<=LAST)) throw Error('Строка не найдена — обнови приложение');
+  const r=sh.getRange(row,1,1,7).getValues()[0];
+  const same=String(r[1]).trim()===ME&&!String(r[6]||'')&&orig&&ymd_(r[0],tz)===orig.date&&round_(r[2])===round_(orig.income)&&round_(r[3])===round_(orig.saved);
+  if(!same) throw Error('Строка в таблице изменилась — обнови приложение и попробуй ещё раз');
+  return {sh,row};
+}
 function updateEntry_(e){
+  if(/^vvod-\d+$/.test(String(e&&e.id))) return locked_(()=>{     // первая правка ручной строки: она переходит в приложение
+    const tz=book_().getSpreadsheetTimeZone(), t=tableRow_(e.id,e.orig,tz), sh=log_(true), c=clean_(e,Utilities.getUuid());
+    t.sh.getRange(t.row,7).setValue(c.id);
+    sh.appendRow(logValues_(c,tz));
+    const m=mirror_(c); if(m) writeInput_(t.sh,t.row,c,m,tz); else clearInput_(t.sh,t.row);
+    return getState_();
+  });
   return locked_(()=>{
     const tz=book_().getSpreadsheetTimeZone(), sh=log_(true), row=logRow_(sh,String(e&&e.id));
     if(!row) throw Error('Запись не найдена — обнови страницу');
@@ -362,7 +379,12 @@ function updateEntry_(e){
     return getState_();
   });
 }
-function deleteEntry_(id){
+function deleteEntry_(id,orig){
+  if(/^vvod-\d+$/.test(String(id))) return locked_(()=>{
+    const tz=book_().getSpreadsheetTimeZone(), t=tableRow_(id,orig,tz);
+    clearInput_(t.sh,t.row);
+    return getState_();
+  });
   return locked_(()=>{
     const tz=book_().getSpreadsheetTimeZone(), sh=log_(true), row=logRow_(sh,String(id));
     if(!row) throw Error('Запись не найдена — обнови страницу');

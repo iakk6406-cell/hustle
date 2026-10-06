@@ -637,12 +637,11 @@ document.querySelectorAll('[data-new]').forEach(b=>b.onclick=()=>openSheet(b.dat
 // ================= окно записи =================
 const lastAcc=t=>LS.get('hustle-lastacc',{})[t]||'';
 function openSheet(type,entry,preset){if(!S.state)return;
- if(entry&&entry.src==='table'){note('Эта строка добавлена в таблицу вручную — правь её в таблице');return}
  S.edit=entry||null;const F=S.f,e=entry||{};
  F.type=e.type||type;F.cur=e.cur||F.cur||S.disp;F.from=e.from==='savings'?'savings':'income';F.cat=e.category||'';
  const accs=items('accounts').map(a=>a.n);F.acc=entry?(e.account||''):(lastAcc(F.type)&&accs.includes(lastAcc(F.type))?lastAcc(F.type):accs[0]||'');
  F.toAcc=e.to?e.to.account||'':(accs.find(a=>a!==F.acc)||accs[0]||'');F.toCur=e.to?e.to.cur:F.cur;F.toTouched=!!(e.to&&e.to.cur!==e.cur);
- $('form-title').textContent=entry?'Изменить запись':'Новая запись';$('delete').hidden=!entry;
+ $('form-title').textContent=entry?(entry.src==='table'?'Изменить запись из таблицы':'Изменить запись'):'Новая запись';$('delete').hidden=!entry;
  $('amount').value=entry?String(e.amount).replace('.',','):'';$('saved').value=e.saved?String(e.saved).replace('.',','):'';$('note').value=e.note||'';$('date').value=e.date||today();
  $('to-amount').value=e.to?String(e.to.amount).replace('.',','):'';$('to-amount').dataset.manual=e.to?'1':'';$('person').value=e.person||(preset&&preset.person)||'';
  $('people').replaceChildren(...[...ledger(S.state.entries).D.values()].map(d=>{const o=el('option');o.value=d.name;return o}));
@@ -656,16 +655,16 @@ function setType(t){const F=S.f;F.type=t;const debt=DEBT.includes(t);seg('type-s
  const incoming=t==='lendBack'||t==='borrow';
  $('bucket-label').textContent=t==='save'?'Куда':t==='transfer'?'Какие деньги переводишь':incoming?'Куда положить':'Откуда берёшь';
  const bs=$('bucket-seg').querySelectorAll('button');bs[0].textContent=t==='save'?'В отложенные':incoming?'В свободные':'Свободные';bs[1].textContent=t==='save'?'Обратно в свободные':incoming?'В отложенные':'Отложенные';
- $('acc-label').textContent=t==='income'||incoming?'Куда пришло':t==='transfer'?'Откуда':'Откуда платил';$('cat-label').textContent=t==='income'?'Источник':'Категория';
+ $('acc-label').textContent=t==='income'||incoming?'Как пришли — способ / счёт':t==='transfer'?'Откуда':'Чем платил — способ / счёт';$('cat-label').textContent=t==='income'?'Источник':'Категория';
  $('submit').textContent=S.edit?'Сохранить':{income:'Записать доход',out:'Записать расход',save:'Отложить',transfer:'Перевести',lend:'Дал в долг',lendBack:'Мне вернули',borrow:'Взял в долг',repay:'Я вернул'}[t];
  setCur(F.cur);setFrom(F.from);drawFormChips();hint()}
 function setCur(c){S.f.cur=c;seg('cur-seg',c,setCur);if(!S.f.toTouched){S.f.toCur=c}seg('to-cur-seg',S.f.toCur,setToCur);autoTo();hint()}
 function setToCur(c){S.f.toCur=c;S.f.toTouched=c!==S.f.cur;seg('to-cur-seg',c,setToCur);$('to-amount').value='';autoTo();hint()}
 function setFrom(f){S.f.from=f;seg('bucket-seg',f,setFrom);hint()}
 function drawFormChips(){const F=S.f;
- const chips=(boxId,list,val,onPick,addKind)=>{const box=$(boxId);box.replaceChildren(...list.map(x=>{const b=el('button','chip'+(x.n===val?' on':''),x.i+' '+x.n);b.type='button';b.onclick=()=>{onPick(x.n);drawFormChips();hint()};return b}));
+ const chips=(boxId,list,val,onPick,addKind)=>{const box=$(boxId);box.replaceChildren(...list.map(x=>{const b=el('button','chip'+(x.n===val?' on':''),x.i+' '+(x.n||'Не указан'));b.type='button';b.onclick=()=>{onPick(x.n);drawFormChips();hint()};return b}));
   if(addKind){const a=el('button','chip','＋');a.type='button';a.title='Добавить';a.onclick=()=>openPick(addKind);box.append(a)}};
- const accs=items('accounts').slice();if(F.acc&&!accs.some(a=>a.n===F.acc))accs.push({n:F.acc,i:accIcon(F.acc)});if(S.edit&&!F.acc&&S.edit.src==='site')accs.push({n:'',i:'❔'});
+ const accs=items('accounts').slice();if(F.acc&&!accs.some(a=>a.n===F.acc))accs.push({n:F.acc,i:accIcon(F.acc)});if(S.edit&&!F.acc)accs.push({n:'',i:'❔'});
  chips('acc-chips',accs.map(a=>({...a,n:a.n})),F.acc,n=>F.acc=n,'accounts');
  const toAccs=items('accounts').slice();if(F.toAcc&&!toAccs.some(a=>a.n===F.toAcc))toAccs.push({n:F.toAcc,i:accIcon(F.toAcc)});chips('to-chips',toAccs,F.toAcc,n=>F.toAcc=n,'accounts');
  const kind=F.type==='income'?'incomeCategories':'categories',cats=items(kind).slice();if(F.cat&&!cats.some(c=>c.n===F.cat))cats.push({n:F.cat,i:'🏷️'});
@@ -692,10 +691,10 @@ $('form').onsubmit=ev=>{ev.preventDefault();if(!S.state)return;const F=S.f,t=F.t
  if(['out','lend','repay'].includes(t)){const have=d.from==='savings'?uSaved(L,d.cur):uFree(L,d.cur);if(d.amount>have+0.004&&!confirm((d.from==='savings'?'Отложено':'Свободно')+' только '+fmt(have,d.cur)+'. Всё равно записать?'))return}
  if(t==='save'){const have=d.from==='savings'?uSaved(L,d.cur):uFree(L,d.cur);if(d.amount>have+0.004&&!confirm((d.from==='savings'?'Отложено':'Свободно')+' только '+fmt(have,d.cur)+'. Всё равно?'))return}
  if(t==='lendBack'||t==='repay'){const p=L.D.get(d.person.toLowerCase()),v=p?uDebt(p,t==='lendBack'?'lent':'owe',d.cur):0;if(d.amount>v+0.004&&!confirm((t==='lendBack'?d.person+' был должен тебе ':'Ты был должен ')+fmt(Math.max(0,v),d.cur)+'. Всё равно записать '+fmt(d.amount,d.cur)+'?'))return}
- const was=S.edit;if(was)call('updateEntry',{...d,id:was.id});else call('addEntry',{...d,id:crypto.randomUUID()});
+ const was=S.edit;if(was)call('updateEntry',{...d,id:was.id,...(was.src==='table'?{orig:{date:was.date,...(was.raw||{})}}:{})});else call('addEntry',{...d,id:crypto.randomUUID()});
  if(d.account){const m=LS.get('hustle-lastacc',{});m[t]=d.account;LS.set('hustle-lastacc',m)}
  $('to-amount').dataset.manual='';closeSheet();note((was?'Изменено':'Записано: '+entryTitle(d)+' '+fmt(d.amount,d.cur))+(S.offline?' · уйдёт в таблицу, когда будет интернет':''))};
-$('delete').onclick=()=>{const e=S.edit;if(!e)return;if(!confirm('Удалить «'+entryTitle(e)+' '+fmt(e.amount,e.cur)+'» от '+dmy(e.date)+'?'))return;call('deleteEntry',e.id);closeSheet();note('Удалено')};
+$('delete').onclick=()=>{const e=S.edit;if(!e)return;if(!confirm('Удалить «'+entryTitle(e)+' '+fmt(e.amount,e.cur)+'» от '+dmy(e.date)+'?'+(e.src==='table'?' Строка во «Ввод» тоже очистится.':'')))return;if(e.src==='table')call('deleteEntry',e.id,{date:e.date,...(e.raw||{})});else call('deleteEntry',e.id);closeSheet();note('Удалено')};
 
 // ================= старт =================
 $('refresh').onclick=()=>{refresh();loadRates(false)};
